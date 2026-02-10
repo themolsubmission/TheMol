@@ -82,6 +82,7 @@ TheMol/
 ├── data/                       # Data files
 │   ├── dict.txt                # Atom vocabulary
 │   └── chembl_ring_systems.pkl # Ring system reference
+├── extract_latent.py           # Latent space extraction
 ├── train_pretrain.sh           # Pretraining script
 └── train_pretrain_flow.sh      # Pretraining with flow
 ```
@@ -352,6 +353,68 @@ python run_experiment.py \
 ```bash
 python summarize.py --results_dir ./results
 ```
+
+---
+
+### Task 5: Latent Space Extraction
+
+Extract molecular latent representations from pretrained TheMol model.
+
+| Resource | Link |
+|----------|------|
+| Pretrained Checkpoint | [Google Drive](https://drive.google.com/drive/folders/YOUR_MODEL_LINK) |
+
+```bash
+# Extract latent from SDF file
+python extract_latent.py \
+    --sdf_path /path/to/molecules.sdf \
+    --checkpoint_path /path/to/checkpoint.pt \
+    --dict_path ./data/dict.txt \
+    --output_path latent.pkl
+
+# Extract latent from SMILES
+python extract_latent.py \
+    --smiles "CCO" \
+    --checkpoint_path /path/to/checkpoint.pt \
+    --dict_path ./data/dict.txt \
+    --output_path latent.pkl
+
+# Extract latent from directory of SDF files
+python extract_latent.py \
+    --sdf_dir /path/to/sdf_directory \
+    --checkpoint_path /path/to/checkpoint.pt \
+    --dict_path ./data/dict.txt \
+    --output_path latents.pkl
+
+# Extract with different aggregation methods
+python extract_latent.py \
+    --sdf_path /path/to/molecules.sdf \
+    --aggregate mean \
+    --output_path latent.pkl
+```
+
+**Aggregation Methods:**
+| Method | Description |
+|--------|-------------|
+| `mean` | Mean pooling over atom latents (default) |
+| `sum` | Sum pooling over atom latents |
+| `cls` | Use first token (BOS) latent |
+| `all` | Return all atom-level latents |
+
+**Output Format:**
+```python
+# Output pickle contains:
+{
+    'smiles': str,                    # SMILES string
+    'latent_mean': np.array,          # Aggregated latent mean [8]
+    'latent_z': np.array,             # Sampled latent vector [8]
+    'latent_mean_full': np.array,     # Per-atom latent means [N, 8]
+    'latent_std_full': np.array,      # Per-atom latent stds [N, 8]
+    'num_atoms': int,                 # Number of atoms
+}
+```
+
+---
 
 ## 🔧 Configuration
 
