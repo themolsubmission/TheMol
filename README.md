@@ -2,7 +2,8 @@
   <img src="assets/logo.png" width="300" alt="TheMol Logo"/>
 </p>
 
-<h1 align="center">Learning Canonical Representations for Unified 3D Molecular Modeling</h1>
+<h1 align="center"> Learning Canonical Representations for Unified 3D Molecular Modeling  </h1> 
+
 
 <p align="center">
   <a href="https://arxiv.org/abs/xxxx.xxxxx"><img src="https://img.shields.io/badge/arXiv-xxxx.xxxxx-b31b1b.svg" alt="arXiv"></a>
