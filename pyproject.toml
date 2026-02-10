@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "themol"
+version = "0.1.0"
+description = "Learning Canonical Representations for Unified 3D Molecular Modeling"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "TheMol Team", email = "themolsubmission@gmail.com"}
+]
+requires-python = ">=3.9"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Chemistry",
+]
+keywords = ["molecular modeling", "3D molecules", "deep learning", "drug discovery"]
+dependencies = [
+    "numpy>=1.20.0",
+    "scipy>=1.7.0",
+    "pandas>=1.3.0",
+    "tqdm>=4.60.0",
+    "lmdb>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=6.0",
+    "black>=22.0",
+    "flake8>=4.0",
+]
+optimization = [
+    "cmaes>=0.9.0",
+    "pyzmq>=22.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/themolsubmission/TheMol"
+Repository = "https://github.com/themolsubmission/TheMol"
+Issues = "https://github.com/themolsubmission/TheMol/issues"
+
+[tool.setuptools.packages.find]
+exclude = ["tests", "tests.*"]
+
+[tool.setuptools.package-data]
+unimol = ["*.txt", "*.pkl"]
+data = ["*.txt", "*.pkl"]
