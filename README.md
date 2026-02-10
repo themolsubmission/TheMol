@@ -45,8 +45,8 @@ By canonicalizing molecules into a learned standard pose before encoding, a sing
 
 ## 🔥 News
 
-- **[2025.xx]** Code released for ICML 2025 submission
-- **[2025.xx]** Pretrained checkpoints available on Google Drive
+- **[2026.xx]** Code released for ICML 2026 submission
+- **[2026.xx]** Pretrained checkpoints available on Google Drive
 
 ---
 
@@ -140,7 +140,7 @@ pip install posebusters
 
 | Resource | Description | Link |
 |----------|-------------|------|
-| **Pretrained Model** | TheMol checkpoint | [Google Drive](https://drive.google.com/drive/folders/YOUR_MODEL_LINK) |
+| **Pretrained Model** | TheMol checkpoint | [Google Drive](https://github.com/themolsubmission/TheMol/releases/download/v1.0.0-Pretrained-checkpoint/checkpoint_last.pt) |
 | **GEOM Dataset** | Pretraining data (LMDB) | [Google Drive](https://drive.google.com/drive/folders/YOUR_GEOM_LINK) |
 | **MoleculeNet** | Property prediction data | [Google Drive](https://drive.google.com/drive/folders/YOUR_MOLNET_LINK) |
 | **ADMET** | TDC ADMET benchmark data | [Google Drive](https://drive.google.com/drive/folders/YOUR_ADMET_LINK) |
