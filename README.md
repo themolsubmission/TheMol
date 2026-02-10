@@ -20,10 +20,9 @@
 </p>
 
 ---
-
+<img src="assets/themol.png" width = 40% alt="TheMol"/>
 ## 📋 Overview
 
-<img src="assets/themol.png" width = 40% alt="TheMol"/>
 3D molecular foundation models must handle diverse tasks (from predicting scalar properties to generating 3D coordinates) yet existing approaches force a choice between invariant and equivariant architectures, each with inherent limitations.
 
 **We show that this tradeoff is unnecessary.**
