@@ -109,7 +109,7 @@ conda create -n themol python=3.9
 conda activate themol
 
 # Step 2: Install PyTorch with CUDA 11.8
-pip install torch==2.0.0 --index-url https://download.pytorch.org/whl/cu118
+pip install torch==2.0.1+cu118 torchvision==0.15.2+cu118 torchaudio==2.0.2 --index-url https://download.pytorch.org/whl/cu118
 
 # Step 3: Install Uni-Core (select wheel matching your Python version)
 # For Python 3.9 + CUDA 11.8 + PyTorch 2.0.0:
