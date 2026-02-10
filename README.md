@@ -12,15 +12,15 @@
 </p>
 
 <p align="center">
-  ▶ <a href="https://arxiv.org/abs/xxxx.xxxxx">Paper</a> •
-  ▶ <a href="https://drive.google.com/drive/folders/YOUR_MODEL_LINK">Model</a> •
-  ▶ <a href="https://drive.google.com/drive/folders/YOUR_DATA_LINK">Dataset</a> •
-  ▶ <a href="#quick-start">Quick Start</a>
+  📄 <a href="https://arxiv.org/abs/xxxx.xxxxx">Paper</a> •
+  🧠 <a href="https://drive.google.com/drive/folders/YOUR_MODEL_LINK">Model</a> •
+  🗂️ <a href="https://drive.google.com/drive/folders/YOUR_DATA_LINK">Dataset</a> •
+  💻 <a href="#quick-start">Quick Start</a>
 </p>
 
 ---
 
-## ◈ Overview
+## 📋 Overview
 
 **TheMol** is a unified framework for 3D molecular generation that combines:
 
@@ -36,21 +36,21 @@
 
 | Feature | Description |
 |---------|-------------|
-| ◆ **Unconditional Generation** | Generate valid 3D molecules from scratch |
-| ◆ **Property Prediction** | Fine-tune for MoleculeNet & ADMET benchmarks |
-| ◆ **Target-aware Optimization** | CMA-ES based latent optimization with docking scores |
-| ◆ **Fast Inference** | Efficient sampling with flow matching |
+| 🎯 **Unconditional Generation** | Generate valid 3D molecules from scratch |
+| 🧬 **Property Prediction** | Fine-tune for MoleculeNet & ADMET benchmarks |
+| 🔬 **Target-aware Optimization** | CMA-ES based latent optimization with docking scores |
+| ⚡ **Fast Inference** | Efficient sampling with flow matching |
 
 ---
 
-## ◈ News
+## 🔥 News
 
 - **[2025.xx]** Code released for ICML 2025 submission
 - **[2025.xx]** Pretrained checkpoints available on Google Drive
 
 ---
 
-## ◈ Repository Structure
+## 📁 Repository Structure
 
 ```
 TheMol/
@@ -88,7 +88,7 @@ TheMol/
 
 ---
 
-## ◈ Installation
+## 🛠️ Installation
 
 ### Requirements
 
@@ -133,7 +133,7 @@ pip install posebusters
 
 ---
 
-## ◈ Data & Checkpoints
+## 📦 Data & Checkpoints
 
 ### Download Links
 
@@ -166,7 +166,7 @@ mkdir -p checkpoints
 
 ---
 
-## ◈ Quick Start
+## 🚀 Quick Start
 
 ### 1. Pretraining
 
@@ -192,7 +192,7 @@ bash train_pretrain_flow.sh
 
 ---
 
-## ◈ Tasks
+## 🧪 Tasks
 
 ### Task 1: Unconditional Molecule Generation
 
@@ -335,7 +335,7 @@ python summarize.py --results_dir ./results
 
 ---
 
-## ◈ Results
+## 📊 Results
 
 ### Unconditional Generation
 
@@ -361,7 +361,7 @@ python summarize.py --results_dir ./results
 
 ---
 
-## ◈ Configuration
+## 🔧 Configuration
 
 ### Model Architecture
 
@@ -399,7 +399,7 @@ masked_dist_loss = 10.0
 
 ---
 
-## ◈ Citation
+## 📝 Citation
 
 If you find this work useful, please cite:
 
@@ -414,13 +414,13 @@ If you find this work useful, please cite:
 
 ---
 
-## ◈ License
+## 📜 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-## ◈ Acknowledgements
+## 🙏 Acknowledgements
 
 We thank the authors of the following projects for their excellent work:
 
