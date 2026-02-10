@@ -140,8 +140,8 @@ pip install posebusters
 
 | Resource | Description | Link |
 |----------|-------------|------|
-| **Pretrained Model** | TheMol checkpoint | [Google Drive](https://github.com/themolsubmission/TheMol/releases/download/v1.0.0-Pretrained-checkpoint/checkpoint_last.pt) |
-| **GEOM Dataset** | Pretraining data (LMDB) | [Google Drive](https://drive.google.com/drive/folders/YOUR_GEOM_LINK) |
+| **Pretrained Model** | TheMol checkpoint | [Download Link](https://github.com/themolsubmission/TheMol/releases/download/v1.0.0-Pretrained-checkpoint/checkpoint_last.pt) |
+| **GEOM Dataset** | Pretraining data (LMDB) | [Google Drive](https://drive.google.com/file/d/1EVRqx2xLUFf40zuTa0HgCKUKznWs9mGL/view?usp=sharing) |
 | **MoleculeNet** | Property prediction data | [Google Drive](https://drive.google.com/drive/folders/YOUR_MOLNET_LINK) |
 | **ADMET** | TDC ADMET benchmark data | [Google Drive](https://drive.google.com/drive/folders/YOUR_ADMET_LINK) |
 | **CrossDocked** | Docking benchmark data | [Google Drive](https://drive.google.com/drive/folders/YOUR_DOCKING_LINK) |
