@@ -16,7 +16,9 @@
 </p>
 
 ---
-<img src="assets/themol.png" width = 40% alt="TheMol"/>
+<p align="center">
+  <img src="assets/themol.png" width = 40% alt="TheMol"/>
+<p align="center">
 
 ## 📋 Overview
 
