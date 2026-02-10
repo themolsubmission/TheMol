@@ -20,9 +20,9 @@ echo -e "${BLUE}============================================${NC}"
 echo -e "${BLUE}CMA-ES Molecular Optimization Pipeline${NC}"
 echo -e "${BLUE}============================================${NC}"
 
-# Directories
+# Directories - CONFIGURE THESE PATHS
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-UNIDOCK_DIR="/home/csy/work1/gnina-torch"
+UNIDOCK_DIR="/path/to/unidock"  # Replace with your Uni-Dock directory
 LOG_DIR="${SCRIPT_DIR}/logs"
 
 # Create log directory if it doesn't exist
@@ -71,7 +71,7 @@ else
     cd "${UNIDOCK_DIR}"
 
     # Start Uni-Dock server in background
-    source /home/csy/anaconda3/bin/activate unidock_env
+    # source /path/to/anaconda3/bin/activate unidock_env  # Uncomment and configure
     nohup python -u unidock_zmq_server.py > "${UNIDOCK_LOG}" 2>&1 &
     UNIDOCK_PID=$!
 
@@ -109,7 +109,7 @@ echo -e "${YELLOW}Activating lf_cfm_cma conda environment...${NC}"
 cd "${SCRIPT_DIR}"
 
 # Activate conda environment and run optimization
-source /home/csy/anaconda3/bin/activate lf_cfm_cma
+# source /path/to/anaconda3/bin/activate your_env  # Uncomment and configure
 
 echo -e "${GREEN}✓ Starting molecular generation and optimization...${NC}"
 echo -e "${YELLOW}  Log file: ${OPTIMIZATION_LOG}${NC}"

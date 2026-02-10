@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """
-TheMol 모델로 분자 생성 후 평가 지표 계산
-train_finetuning_geom.sh로 학습한 모델 사용
+Molecule generation and evaluation metrics computation using TheMol model
+Uses model trained with train_finetuning_geom.sh
 
-평가 지표 (FlowMol 호환):
-1. Validity: RDKit sanitization 성공률, connectivity
-2. Stability (Bond-based): unicore/eval.py의 bond-based stability
-3. Stability (Valence-based): MiDi valence table 기반 stability
+Evaluation metrics (FlowMol compatible):
+1. Validity: RDKit sanitization success rate, connectivity
+2. Stability (Bond-based): bond-based stability from unicore/eval.py
+3. Stability (Valence-based): MiDi valence table based stability
 4. REOS: Structural alerts (Glaxo, Dundee rules)
-5. Ring Systems: OOD ring system 비율
+5. Ring Systems: OOD ring system ratio
 6. Energy: MMFF energy JS divergence
-7. PoseBusters: 3D 구조 품질 검증
-8. Geometry: xTB 최적화 기반 energy gain, RMSD, MMFF drop
+7. PoseBusters: 3D structure quality verification
+8. Geometry: xTB optimization based energy gain, RMSD, MMFF drop
 """
 
 import os
@@ -24,8 +24,8 @@ import shutil
 from pathlib import Path
 from collections import defaultdict
 
-# TheMol 프로젝트 경로 추가
-sys.path.insert(0, '/home/csy/work1/3D/TheMol/unimol')
+# Add TheMol project path
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'unimol'))
 
 from rdkit import Chem
 from rdkit.Chem import AllChem, Descriptors, rdMolDescriptors
@@ -36,7 +36,7 @@ import pickle
 
 
 # ============================================================
-# MiDi Valence Table (FlowMol에서 사용하는 것과 동일)
+# MiDi Valence Table (same as used in FlowMol)
 # ============================================================
 MIDI_VALENCE_TABLE = {
     'H': {0: 1, 1: 0, -1: 0},
@@ -53,15 +53,15 @@ MIDI_VALENCE_TABLE = {
 
 
 # ============================================================
-# REOS Structural Alerts (FlowMol 호환 - CSV 파일에서 로드)
+# REOS Structural Alerts (FlowMol compatible - load from CSV file)
 # ============================================================
-# CSV 파일 경로 (useful_rdkit_utils와 동일한 alert_collection.csv)
-REOS_RULES_CSV_PATH = Path('/home/csy/work1/3D/TheMol/data/reos_alert_collection.csv')
+# CSV file path (same alert_collection.csv as useful_rdkit_utils)
+REOS_RULES_CSV_PATH = Path(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) / 'data' / 'reos_alert_collection.csv'
 REOS_RULES_CSV_URL = 'https://raw.githubusercontent.com/PatWalters/rd_filters/master/rd_filters/data/alert_collection.csv'
 
 
 def load_reos_rules(active_rules=["Glaxo", "Dundee"]):
-    """REOS 규칙을 CSV에서 로드 (FlowMol/useful_rdkit_utils와 동일)
+    """Load REOS rules from CSV (same as FlowMol/useful_rdkit_utils)
 
     Returns:
         DataFrame with columns: rule_set_name, description, smarts, max, pat (compiled)
@@ -69,7 +69,7 @@ def load_reos_rules(active_rules=["Glaxo", "Dundee"]):
     """
     import subprocess as sp
 
-    # CSV 파일이 없으면 다운로드
+    # Download if CSV file doesn't exist
     if not REOS_RULES_CSV_PATH.exists():
         print(f"Downloading REOS rules from {REOS_RULES_CSV_URL}...")
         REOS_RULES_CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -78,13 +78,13 @@ def load_reos_rules(active_rules=["Glaxo", "Dundee"]):
         if result.returncode != 0:
             raise RuntimeError(f"Failed to download REOS rules: {result.stderr}")
 
-    # CSV 로드
+    # Load CSV
     df = pd.read_csv(REOS_RULES_CSV_PATH)
 
-    # active_rules 필터링
+    # Filter by active_rules
     df = df[df['rule_set_name'].isin(active_rules)].copy()
 
-    # SMARTS 컴파일
+    # Compile SMARTS
     pat_list = []
     valid_rows = []
     for idx, row in df.iterrows():
@@ -96,10 +96,10 @@ def load_reos_rules(active_rules=["Glaxo", "Dundee"]):
     df = df.loc[valid_rows].copy()
     df['pat'] = pat_list
 
-    # flag header 생성 (FlowMol 형식)
+    # Create flag header (FlowMol format)
     df['flag_name'] = df['rule_set_name'] + '::' + df['description']
 
-    # 정렬
+    # Sort
     df = df.sort_values('flag_name').reset_index(drop=True)
 
     return df
@@ -109,7 +109,7 @@ def load_reos_rules(active_rules=["Glaxo", "Dundee"]):
 # Model Loading Functions
 # ============================================================
 def load_dictionary(dict_path):
-    """dictionary 로드"""
+    """Load dictionary"""
     from unicore.data import Dictionary
 
     dictionary = Dictionary(
@@ -135,8 +135,8 @@ def load_dictionary(dict_path):
     return dictionary
 
 
-def load_model(checkpoint_path, device='cuda', dict_path='/home/csy/work1/3D/TheMol/GEOM_dataset/dict.txt'):
-    """학습된 모델 로드"""
+def load_model(checkpoint_path, device='cuda', dict_path='./data/dict.txt'):
+    """Load trained model"""
     from unicore import checkpoint_utils
     from unicore.models import register_model
     from models.unimol_MAE_padding import UniMolOptimalPaddingModelDual
@@ -162,8 +162,8 @@ def load_model(checkpoint_path, device='cuda', dict_path='/home/csy/work1/3D/The
     return model, args
 
 
-def create_vocab_dict(dict_path='/home/csy/work1/3D/TheMol/GEOM_dataset/dict.txt'):
-    """원자 타입 vocab 딕셔너리 생성"""
+def create_vocab_dict(dict_path='./data/dict.txt'):
+    """Create atom type vocabulary dictionary"""
     vocab = []
     with open(dict_path, 'r') as f:
         for line in f:
@@ -181,7 +181,7 @@ def create_vocab_dict(dict_path='/home/csy/work1/3D/TheMol/GEOM_dataset/dict.txt
 # Molecule Sampling
 # ============================================================
 def sample_molecules(model, num_samples=100, batch_size=50, device='cuda'):
-    """Flow Matching 모델로 분자 샘플링"""
+    """Sample molecules using Flow Matching model"""
     from unicore.tasks.unicore_task import save_batch_to_sdf_reconstruct
 
     vocab_dict = create_vocab_dict()
@@ -272,7 +272,7 @@ def sample_molecules(model, num_samples=100, batch_size=50, device='cuda'):
 # Validity Metrics
 # ============================================================
 def compute_validity(mol_list):
-    """RDKit 기반 validity 계산"""
+    """Compute validity based on RDKit"""
     n_valid = 0
     n_connected = 0
     num_components = []
@@ -320,7 +320,7 @@ def compute_validity(mol_list):
 # Bond-based Stability (unicore/eval.py)
 # ============================================================
 def compute_bond_stability(mol_list):
-    """unicore/eval.py의 bond-based stability 계산"""
+    """Compute bond-based stability from unicore/eval.py"""
     from unicore.eval import analyze_stability_for_rdkit_mols
 
     validity_dict, details = analyze_stability_for_rdkit_mols(
@@ -340,7 +340,7 @@ def compute_bond_stability(mol_list):
 # Valence-based Stability (MiDi style)
 # ============================================================
 def get_atom_valency(mol, atom_idx):
-    """원자의 valency (결합 수) 계산"""
+    """Compute atom valency (number of bonds)"""
     atom = mol.GetAtomWithIdx(atom_idx)
     valency = 0
     for bond in atom.GetBonds():
@@ -357,7 +357,7 @@ def get_atom_valency(mol, atom_idx):
 
 
 def check_valence_stability(mol, valence_table=MIDI_VALENCE_TABLE):
-    """MiDi valence table 기반 stability 체크"""
+    """Check stability based on MiDi valence table"""
     n_stable_atoms = 0
     n_atoms = mol.GetNumAtoms()
 
@@ -397,7 +397,7 @@ def check_valence_stability(mol, valence_table=MIDI_VALENCE_TABLE):
 
 
 def compute_valence_stability(mol_list):
-    """Valence-based stability 계산 (FlowMol 스타일)"""
+    """Compute valence-based stability (FlowMol style)"""
     n_atoms_total = 0
     n_stable_atoms_total = 0
     n_stable_molecules = 0
@@ -420,16 +420,16 @@ def compute_valence_stability(mol_list):
 
 
 # ============================================================
-# REOS Structural Alerts (FlowMol 호환)
+# REOS Structural Alerts (FlowMol compatible)
 # ============================================================
 
-# FlowMol reference 데이터 경로
-REOS_TRAIN_DATA_PATH = Path('/home/csy/work1/3D/TheMol/data/train_reos_ring_counts.pkl')
+# FlowMol reference data path
+REOS_TRAIN_DATA_PATH = Path(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) / 'data' / 'train_reos_ring_counts.pkl'
 REOS_TRAIN_DATA_URL = 'https://bits.csb.pitt.edu/files/FlowMol/data/train_reos_ring_counts.pkl'
 
 
 def download_reos_train_data(download_path: Path):
-    """FlowMol 서버에서 reference REOS 데이터 다운로드"""
+    """Download reference REOS data from FlowMol server"""
     import subprocess as sp
     if not download_path.parent.exists():
         download_path.parent.mkdir(parents=True, exist_ok=True)
@@ -443,7 +443,7 @@ def download_reos_train_data(download_path: Path):
 
 
 def build_reos_df(flag_arr, flag_names):
-    """FlowMol과 동일한 REOS DataFrame 생성"""
+    """Create REOS DataFrame (same as FlowMol)"""
     flag_rates = flag_arr.sum(0) / flag_arr.shape[0]
     df_flags = pd.DataFrame({
         'flag_name': flag_names,
@@ -455,7 +455,7 @@ def build_reos_df(flag_arr, flag_names):
 
 
 def get_train_reos_df():
-    """훈련 데이터의 REOS reference DataFrame 로드"""
+    """Load REOS reference DataFrame from training data"""
     if not REOS_TRAIN_DATA_PATH.exists():
         print(f"Training REOS data not found at {REOS_TRAIN_DATA_PATH}")
         download_reos_train_data(REOS_TRAIN_DATA_PATH)
@@ -473,15 +473,15 @@ def get_train_reos_df():
 
 
 def compute_cumulative_reos_deviation(df_reos, df_reos_train):
-    """FlowMol과 동일한 reos_cum_dev 계산"""
+    """Compute reos_cum_dev (same as FlowMol)"""
     if df_reos is None:
         return {'reos_cum_dev': -1}
 
-    # flag_name으로 정렬하여 동일한 순서로 비교
+    # Sort by flag_name for comparison in same order
     df_reos_indexed = df_reos.set_index('flag_name')
     df_reos_train_indexed = df_reos_train.set_index('flag_name')
 
-    # 공통 flag만 사용
+    # Use common flags only
     common_flags = df_reos_indexed.index.intersection(df_reos_train_indexed.index)
 
     if len(common_flags) == 0:
@@ -496,14 +496,15 @@ def compute_cumulative_reos_deviation(df_reos, df_reos_train):
 
 
 def compute_reos_metrics(mol_list):
-    """REOS structural alerts 계산 (FlowMol 호환 + reos_cum_dev)
+    """Compute REOS structural alerts (FlowMol compatible + reos_cum_dev)
 
-    reos_cum_dev: FlowMol reference 데이터와 비교하여 각 REOS flag의
-    빈도 차이의 절대값 합계를 계산합니다. 값이 낮을수록 reference 분포에 가깝습니다.
+    reos_cum_dev: Compares with FlowMol reference data and calculates
+    the sum of absolute frequency differences for each REOS flag.
+    Lower values indicate closer distribution to reference.
 
-    FlowMol과 동일한 REOS 규칙(Glaxo + Dundee)을 CSV에서 로드하여 사용합니다.
+    Loads REOS rules (Glaxo + Dundee) from CSV, same as FlowMol.
     """
-    # REOS 규칙 로드 (FlowMol/useful_rdkit_utils와 동일)
+    # Load REOS rules (same as FlowMol/useful_rdkit_utils)
     try:
         reos_df = load_reos_rules(active_rules=["Glaxo", "Dundee"])
     except Exception as e:
@@ -515,7 +516,7 @@ def compute_reos_metrics(mol_list):
             'reos_cum_dev': -1
         }
 
-    # Reference 데이터 로드
+    # Load reference data
     try:
         df_reos_train = get_train_reos_df()
         has_reference = True
@@ -523,7 +524,7 @@ def compute_reos_metrics(mol_list):
         print(f"Warning: Could not load REOS reference data: {e}")
         has_reference = False
 
-    # sanitize된 분자 수집
+    # Collect sanitized molecules
     sanitized_mols = []
     for mol in mol_list:
         try:
@@ -541,7 +542,7 @@ def compute_reos_metrics(mol_list):
             'reos_cum_dev': -1
         }
 
-    # 분자별 flag array 생성 (FlowMol과 동일한 방식)
+    # Create flag array per molecule (same method as FlowMol)
     flag_names = reos_df['flag_name'].tolist()
     flag_arr = np.zeros((len(sanitized_mols), len(flag_names)), dtype=bool)
 
@@ -549,11 +550,11 @@ def compute_reos_metrics(mol_list):
         for flag_idx, row in reos_df.iterrows():
             pat = row['pat']
             max_val = row['max']
-            # FlowMol과 동일: matches > max_val 이면 flag
+            # Same as FlowMol: flag if matches > max_val
             if len(mol.GetSubstructMatches(pat)) > max_val:
                 flag_arr[mol_idx, flag_idx] = True
 
-    # 기본 메트릭 계산
+    # Compute basic metrics
     n_mols = len(sanitized_mols)
     total_flags = flag_arr.sum()
     n_mols_with_flags = (flag_arr.sum(axis=1) > 0).sum()
@@ -565,7 +566,7 @@ def compute_reos_metrics(mol_list):
         'n_sanitized_for_reos': n_mols
     }
 
-    # reos_cum_dev 계산 (reference와 비교)
+    # Compute reos_cum_dev (compare with reference)
     if has_reference:
         try:
             df_reos_model = build_reos_df(flag_arr, flag_names)
@@ -581,23 +582,23 @@ def compute_reos_metrics(mol_list):
 
 
 # ============================================================
-# Ring System Analysis (FlowMol 호환 - ChEMBL 기반 OOD 계산)
+# Ring System Analysis (FlowMol compatible - ChEMBL based OOD calculation)
 # ============================================================
 
-# ChEMBL ring system 데이터 경로 (pickle 형식 - pyarrow 불필요)
-CHEMBL_RING_SYSTEMS_PATH = Path('/home/csy/work1/3D/TheMol/data/chembl_ring_systems.pkl')
+# ChEMBL ring system data path (pickle format - pyarrow not required)
+CHEMBL_RING_SYSTEMS_PATH = Path(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) / 'data' / 'chembl_ring_systems.pkl'
 
 
 class RingSystemFinder:
-    """FlowMol/useful_rdkit_utils와 동일한 Ring System 추출 클래스"""
+    """Ring System extraction class (same as FlowMol/useful_rdkit_utils)"""
 
     def __init__(self):
-        # Ring에 붙은 carbonyl 등을 보존하기 위한 패턴
+        # Pattern to preserve carbonyls attached to ring
         self.ring_db_pat = Chem.MolFromSmarts("[#6R,#18R]=[OR0,SR0,CR0,NR0]")
         self.ring_atom_pat = Chem.MolFromSmarts("[R]")
 
     def tag_bonds_to_preserve(self, mol):
-        """Ring carbonyl 등의 bond를 보존 표시"""
+        """Mark bonds like ring carbonyls to preserve"""
         for bnd in mol.GetBonds():
             bnd.SetBoolProp("protected", False)
         for match in mol.GetSubstructMatches(self.ring_db_pat):
@@ -607,7 +608,7 @@ class RingSystemFinder:
 
     @staticmethod
     def cleave_linker_bonds(mol):
-        """Ring이 아닌 single bond를 끊어서 ring system 분리"""
+        """Separate ring systems by cleaving non-ring single bonds"""
         frag_bond_list = []
         for bnd in mol.GetBonds():
             if not bnd.IsInRing() and not bnd.GetBoolProp("protected") and bnd.GetBondType() == Chem.BondType.SINGLE:
@@ -621,7 +622,7 @@ class RingSystemFinder:
             return mol
 
     def cleanup_fragments(self, mol):
-        """Fragment에서 ring system만 추출"""
+        """Extract only ring systems from fragments"""
         frag_list = Chem.GetMolFrags(mol, asMols=True)
         ring_system_list = []
         for frag in frag_list:
@@ -637,7 +638,7 @@ class RingSystemFinder:
 
     @staticmethod
     def fix_bond_stereo(mol):
-        """Double bond stereo 수정"""
+        """Fix double bond stereo"""
         for bnd in mol.GetBonds():
             if bnd.GetBondType() == Chem.BondType.DOUBLE:
                 begin_atm = bnd.GetBeginAtom()
@@ -647,11 +648,11 @@ class RingSystemFinder:
         return mol
 
     def find_ring_systems(self, mol, as_mols=False):
-        """분자에서 ring system 추출
+        """Extract ring systems from molecule
 
         Args:
             mol: RDKit molecule
-            as_mols: True면 molecule 객체 반환, False면 SMILES 반환
+            as_mols: If True, return molecule objects; if False, return SMILES
         """
         self.tag_bonds_to_preserve(mol)
         frag_mol = self.cleave_linker_bonds(mol)
@@ -662,7 +663,7 @@ class RingSystemFinder:
 
 
 class RingSystemLookup:
-    """ChEMBL ring system 데이터베이스를 사용한 조회 클래스"""
+    """Lookup class using ChEMBL ring system database"""
 
     def __init__(self, ring_dict):
         self.ring_dict = ring_dict
@@ -670,7 +671,7 @@ class RingSystemLookup:
 
     @classmethod
     def default(cls):
-        """기본 ChEMBL ring system 데이터 로드 (pickle 형식)"""
+        """Load default ChEMBL ring system data (pickle format)"""
         if not CHEMBL_RING_SYSTEMS_PATH.exists():
             raise FileNotFoundError(f"ChEMBL ring systems data not found at {CHEMBL_RING_SYSTEMS_PATH}")
 
@@ -679,7 +680,7 @@ class RingSystemLookup:
         return cls(ring_dict)
 
     def process_mol(self, mol):
-        """분자에서 ring system 추출 및 ChEMBL 빈도 조회
+        """Extract ring systems from molecule and lookup ChEMBL frequency
 
         Returns:
             list of (ring_smiles, chembl_count) tuples
@@ -696,18 +697,18 @@ class RingSystemLookup:
 
 
 class RingSystemCounter:
-    """FlowMol과 동일한 Ring System 카운터"""
+    """Ring System counter (same as FlowMol)"""
 
     def __init__(self):
         self.ring_system_lookup = RingSystemLookup.default()
 
     def count_ring_systems(self, rdmols):
-        """분자 리스트에서 ring system 카운트
+        """Count ring systems from molecule list
 
         Returns:
-            sample_counts: 샘플에서의 ring system 빈도
-            chembl_counts: ChEMBL에서의 ring system 빈도
-            n_mols: 분자 수
+            sample_counts: Ring system frequency in samples
+            chembl_counts: Ring system frequency in ChEMBL
+            n_mols: Number of molecules
         """
         sample_counts = defaultdict(int)
         chembl_counts = {}
@@ -726,7 +727,7 @@ class RingSystemCounter:
 
 
 def ring_counts_to_df(sample_counts, chembl_counts, n_mols):
-    """Ring count를 DataFrame으로 변환"""
+    """Convert ring count to DataFrame"""
     ring_smi = list(sample_counts.keys())
     ring_counts = np.array([sample_counts[smi] for smi in ring_smi])
     chembl_counts_arr = np.array([chembl_counts[smi] for smi in ring_smi])
@@ -743,15 +744,15 @@ def ring_counts_to_df(sample_counts, chembl_counts, n_mols):
 
 
 def compute_ring_metrics(mol_list):
-    """Ring system OOD 분석 (FlowMol 호환)
+    """Ring system OOD analysis (FlowMol compatible)
 
-    ChEMBL ring system 데이터베이스를 reference로 사용하여
-    생성된 분자의 ring system이 ChEMBL에 존재하는지 확인합니다.
-    ChEMBL에 없는 ring system은 OOD(Out-of-Distribution)로 간주됩니다.
+    Uses ChEMBL ring system database as reference to check
+    if ring systems in generated molecules exist in ChEMBL.
+    Ring systems not in ChEMBL are considered OOD (Out-of-Distribution).
 
-    ood_rate = (ChEMBL에 없는 ring system 개수) / (전체 ring system 개수)
+    ood_rate = (number of ring systems not in ChEMBL) / (total number of ring systems)
     """
-    # sanitize된 분자 수집
+    # Collect sanitized molecules
     sanitized_mols = []
     for mol in mol_list:
         try:
@@ -768,7 +769,7 @@ def compute_ring_metrics(mol_list):
             'n_unique_ring_systems': 0
         }
 
-    # Ring system 분석
+    # Ring system analysis
     try:
         ring_counter = RingSystemCounter()
         sample_counts, chembl_counts, n_mols = ring_counter.count_ring_systems(sanitized_mols)
@@ -780,15 +781,15 @@ def compute_ring_metrics(mol_list):
                 'n_unique_ring_systems': 0
             }
 
-        # DataFrame으로 변환
+        # Convert to DataFrame
         df_ring = ring_counts_to_df(sample_counts, chembl_counts, n_mols)
 
-        # OOD rate 계산: ChEMBL에 없는 ring의 개수 / 전체 ring 개수
+        # Compute OOD rate: number of rings not in ChEMBL / total ring count
         ood_ring_count = df_ring[df_ring['chembl_count'] == 0]['sample_count'].sum()
         total_ring_count = df_ring['sample_count'].sum()
         ood_rate = ood_ring_count / n_mols if n_mols > 0 else 0
 
-        # 평균 ring 수
+        # Average number of rings
         avg_rings_per_mol = total_ring_count / n_mols if n_mols > 0 else 0
 
         results = {
@@ -814,7 +815,7 @@ def compute_ring_metrics(mol_list):
 # Energy Metrics (MMFF Force Field)
 # ============================================================
 def compute_mmff_energy(mol):
-    """MMFF force field 에너지 계산"""
+    """Compute MMFF force field energy"""
     try:
         ff = AllChem.MMFFGetMoleculeForceField(
             mol,
@@ -829,7 +830,7 @@ def compute_mmff_energy(mol):
 
 
 def compute_energy_metrics(mol_list, reference_energies=None):
-    """에너지 분포 메트릭 계산"""
+    """Compute energy distribution metrics"""
     from scipy.spatial.distance import jensenshannon
     from scipy.stats import gaussian_kde
 
@@ -840,7 +841,7 @@ def compute_energy_metrics(mol_list, reference_energies=None):
             Chem.SanitizeMol(mol_copy)
             energy = compute_mmff_energy(mol_copy)
             if energy is not None and not np.isnan(energy) and not np.isinf(energy):
-                # 에너지를 원자 수로 정규화
+                # Normalize energy by number of atoms
                 energy_per_atom = energy / mol_copy.GetNumAtoms()
                 energies.append(energy_per_atom)
         except Exception:
@@ -851,7 +852,7 @@ def compute_energy_metrics(mol_list, reference_energies=None):
 
     energies = np.array(energies)
 
-    # 기본 통계
+    # Basic statistics
     results = {
         'energy_mean': float(np.mean(energies)),
         'energy_std': float(np.std(energies)),
@@ -859,10 +860,10 @@ def compute_energy_metrics(mol_list, reference_energies=None):
         'n_valid_energies': len(energies)
     }
 
-    # Reference 분포가 있으면 JS divergence 계산
+    # Compute JS divergence if reference distribution exists
     if reference_energies is not None and len(reference_energies) > 0:
         try:
-            # 히스토그램 기반 JS divergence
+            # Histogram-based JS divergence
             bins = np.linspace(
                 min(energies.min(), np.min(reference_energies)),
                 max(energies.max(), np.max(reference_energies)),
@@ -872,11 +873,11 @@ def compute_energy_metrics(mol_list, reference_energies=None):
             hist_sample, _ = np.histogram(energies, bins=bins, density=True)
             hist_ref, _ = np.histogram(reference_energies, bins=bins, density=True)
 
-            # 0 방지
+            # Prevent division by zero
             hist_sample = hist_sample + 1e-10
             hist_ref = hist_ref + 1e-10
 
-            # 정규화
+            # Normalize
             hist_sample = hist_sample / hist_sample.sum()
             hist_ref = hist_ref / hist_ref.sum()
 
@@ -885,7 +886,7 @@ def compute_energy_metrics(mol_list, reference_energies=None):
         except Exception as e:
             results['energy_js_div'] = -1
     else:
-        results['energy_js_div'] = -1  # reference 없음
+        results['energy_js_div'] = -1  # No reference
 
     return results
 
@@ -894,7 +895,7 @@ def compute_energy_metrics(mol_list, reference_energies=None):
 # PoseBusters Metrics
 # ============================================================
 def compute_posebusters_metrics(mol_list):
-    """PoseBusters 메트릭 계산"""
+    """Compute PoseBusters metrics"""
     try:
         import posebusters as pb
 
@@ -923,7 +924,7 @@ def compute_posebusters_metrics(mol_list):
 # Geometry Evaluation (xTB optimization, RMSD, MMFF drop)
 # ============================================================
 def sdf_to_xyz(mol, filename):
-    """RDKit mol을 XYZ 파일로 변환"""
+    """Convert RDKit mol to XYZ file"""
     with open(filename, 'w') as f:
         f.write(f"{mol.GetNumAtoms()}\n\n")
         for atom in mol.GetAtoms():
@@ -932,7 +933,7 @@ def sdf_to_xyz(mol, filename):
 
 
 def get_molecule_charge(mol):
-    """분자의 총 formal charge 계산"""
+    """Compute total formal charge of molecule"""
     total_charge = 0
     for atom in mol.GetAtoms():
         total_charge += atom.GetFormalCharge()
@@ -940,7 +941,7 @@ def get_molecule_charge(mol):
 
 
 def run_xtb_optimization(xyz_filename, output_prefix, charge, work_dir):
-    """xTB 최적화 실행 및 출력 캡처"""
+    """Run xTB optimization and capture output"""
     output_filename = os.path.join(work_dir, f"{output_prefix}_xtb_output.out")
 
     command = f"cd {work_dir} && xtb {os.path.basename(xyz_filename)} --opt --charge {charge} --namespace {output_prefix} > {os.path.basename(output_filename)} 2>&1"
@@ -957,7 +958,7 @@ def run_xtb_optimization(xyz_filename, output_prefix, charge, work_dir):
 
 
 def parse_xtb_output(xtb_output):
-    """xTB 출력에서 energy gain과 RMSD 파싱"""
+    """Parse energy gain and RMSD from xTB output"""
     if xtb_output is None:
         return None, None
 
@@ -981,7 +982,7 @@ def parse_xtb_output(xtb_output):
 
 
 def parse_xtbtopo_mol(xtbtopo_filename):
-    """xtbtopo.mol 파일을 RDKit molecule로 파싱"""
+    """Parse xtbtopo.mol file to RDKit molecule"""
     if not os.path.exists(xtbtopo_filename):
         return None
 
@@ -992,7 +993,7 @@ def parse_xtbtopo_mol(xtbtopo_filename):
 
 
 def process_molecule_xtb(mol, mol_idx, temp_dir):
-    """단일 분자에 대해 xTB 최적화 수행"""
+    """Perform xTB optimization for a single molecule"""
     if mol is None:
         return None, None, None
 
@@ -1018,7 +1019,7 @@ def process_molecule_xtb(mol, mol_idx, temp_dir):
 
 
 def compute_rmsd_geometry(init_mol, opt_mol, hydrogens=True):
-    """초기 분자와 최적화된 분자 간 RMSD 계산"""
+    """Compute RMSD between initial and optimized molecules"""
     try:
         init_mol_copy = Chem.RWMol(init_mol)
         init_mol_copy.AddConformer(opt_mol.GetConformer(), assignId=True)
@@ -1033,11 +1034,11 @@ def compute_rmsd_geometry(init_mol, opt_mol, hydrogens=True):
 
 
 def compute_mmff_energy_drop(mol, max_iters=1000):
-    """MMFF 최적화 전후 에너지 차이 계산"""
+    """Compute energy difference before and after MMFF optimization"""
     try:
         mol_copy = Chem.Mol(mol)
 
-        # 초기 MMFF 에너지
+        # Initial MMFF energy
         props = AllChem.MMFFGetMoleculeProperties(mol_copy, mmffVariant='MMFF94')
         if props is None:
             return None
@@ -1046,12 +1047,12 @@ def compute_mmff_energy_drop(mol, max_iters=1000):
             return None
         e_before = ff.CalcEnergy()
 
-        # MMFF 최적화 실행
+        # Run MMFF optimization
         success = AllChem.MMFFOptimizeMolecule(mol_copy, maxIters=max_iters)
         if success != 0 and success != 1:  # 0=converged, 1=not converged but ok
             return None
 
-        # 최적화 후 에너지
+        # Energy after optimization
         ff_opt = AllChem.MMFFGetMoleculeForceField(mol_copy, props)
         if ff_opt is None:
             return None
@@ -1064,7 +1065,7 @@ def compute_mmff_energy_drop(mol, max_iters=1000):
 
 
 def is_valid_for_geometry(mol):
-    """Geometry 분석을 위한 분자 유효성 검사"""
+    """Validate molecule for geometry analysis"""
     if mol is None:
         return False
     try:
@@ -1078,20 +1079,20 @@ def is_valid_for_geometry(mol):
 
 def compute_geometry_metrics(mol_list, n_subsets=1):
     """
-    Geometry 메트릭 계산 (FlowMol fm3_evals/geometry 호환)
+    Compute geometry metrics (compatible with FlowMol fm3_evals/geometry)
 
     Returns:
-        - avg_energy_gain: 평균 GFN2-xTB 에너지 gain (kcal/mol)
-        - med_energy_gain: 중앙값 GFN2-xTB 에너지 gain
-        - avg_rmsd: 평균 RMSD (Å)
-        - med_rmsd: 중앙값 RMSD
-        - avg_mmff_drop: 평균 MMFF 에너지 drop (kcal/mol)
-        - med_mmff_drop: 중앙값 MMFF 에너지 drop
+        - avg_energy_gain: Average GFN2-xTB energy gain (kcal/mol)
+        - med_energy_gain: Median GFN2-xTB energy gain
+        - avg_rmsd: Average RMSD (Å)
+        - med_rmsd: Median RMSD
+        - avg_mmff_drop: Average MMFF energy drop (kcal/mol)
+        - med_mmff_drop: Median MMFF energy drop
     """
     print("\nRunning Geometry evaluation (xTB optimization)...")
     print("Note: This may take a while. Requires 'xtb' to be installed.")
 
-    # xTB 설치 확인
+    # Check xTB installation
     try:
         result = subprocess.run(['which', 'xtb'], capture_output=True, text=True)
         if result.returncode != 0:
@@ -1101,7 +1102,7 @@ def compute_geometry_metrics(mol_list, n_subsets=1):
     except:
         print("WARNING: Could not check for 'xtb'. Attempting anyway...")
 
-    # 유효한 분자만 필터링
+    # Filter valid molecules only
     valid_mols = [(i, mol) for i, mol in enumerate(mol_list) if is_valid_for_geometry(mol)]
 
     if len(valid_mols) == 0:
@@ -1116,16 +1117,16 @@ def compute_geometry_metrics(mol_list, n_subsets=1):
     rmsds = []
     mmff_drops = []
 
-    # 임시 디렉토리에서 작업
+    # Work in temporary directory
     with tempfile.TemporaryDirectory() as temp_dir:
         for idx, mol in tqdm(valid_mols, desc="xTB optimization"):
-            # xTB 최적화
+            # xTB optimization
             opt_mol, energy_gain, xtb_rmsd = process_molecule_xtb(mol, idx, temp_dir)
 
             if energy_gain is not None:
-                energy_gains.append(-energy_gain)  # 음수를 양수로 (에너지 감소량)
+                energy_gains.append(-energy_gain)  # Convert negative to positive (energy reduction)
 
-            # RMSD 계산 (xTB에서 제공하거나 직접 계산)
+            # Compute RMSD (from xTB or calculated directly)
             if opt_mol is not None and xtb_rmsd is not None:
                 rmsds.append(xtb_rmsd)
             elif opt_mol is not None:
@@ -1138,7 +1139,7 @@ def compute_geometry_metrics(mol_list, n_subsets=1):
             if mmff_drop is not None:
                 mmff_drops.append(mmff_drop)
 
-    # 결과 계산
+    # Compute results
     results = {
         'n_geometry_valid': len(valid_mols),
         'n_xtb_success': len(energy_gains),
@@ -1165,7 +1166,7 @@ def compute_geometry_metrics(mol_list, n_subsets=1):
         results['avg_mmff_drop'] = -1
         results['med_mmff_drop'] = -1
 
-    # Subset 기반 CI 계산 (n_subsets > 1인 경우)
+    # Compute subset-based CI (when n_subsets > 1)
     if n_subsets > 1 and len(energy_gains) >= n_subsets:
         results.update(compute_geometry_ci(energy_gains, rmsds, mmff_drops, n_subsets))
 
@@ -1173,7 +1174,7 @@ def compute_geometry_metrics(mol_list, n_subsets=1):
 
 
 def compute_geometry_metrics_mmff_only(mol_list, n_subsets=1):
-    """xTB 없이 MMFF만 사용하는 geometry 메트릭"""
+    """Geometry metrics using only MMFF without xTB"""
     print("Computing MMFF-only geometry metrics...")
 
     valid_mols = [mol for mol in mol_list if is_valid_for_geometry(mol)]
@@ -1206,7 +1207,7 @@ def compute_geometry_metrics_mmff_only(mol_list, n_subsets=1):
 
 
 def compute_geometry_ci(energy_gains, rmsds, mmff_drops, n_subsets):
-    """Geometry 메트릭의 95% CI 계산"""
+    """Compute 95% CI for geometry metrics"""
     import math
 
     results = {}
@@ -1241,7 +1242,7 @@ def compute_geometry_ci(energy_gains, rmsds, mmff_drops, n_subsets):
 # Main Evaluation Function
 # ============================================================
 def evaluate_molecules(mol_list, compute_energy=True, compute_geometry=False, n_subsets=1):
-    """모든 평가 지표 계산"""
+    """Compute all evaluation metrics"""
     print("\n" + "="*60)
     print("Molecule Evaluation (FlowMol Compatible)")
     print("="*60)
@@ -1300,7 +1301,7 @@ def evaluate_molecules(mol_list, compute_energy=True, compute_geometry=False, n_
 # Results Printing
 # ============================================================
 def print_metrics(metrics):
-    """평가 지표 출력"""
+    """Print evaluation metrics"""
     print("\n" + "="*60)
     print("EVALUATION RESULTS")
     print("="*60)
@@ -1384,13 +1385,8 @@ def print_metrics(metrics):
 # ============================================================
 def main():
     parser = argparse.ArgumentParser(description='Generate molecules and evaluate with FlowMol-compatible metrics')
-    # parser.add_argument('--checkpoint', type=str,
-    #                     default='/home/csy/work1/3D/TheMol/saveGEOM/checkpoint_last.pt',
-    #                     help='Path to model checkpoint')
     parser.add_argument('--checkpoint', type=str,
-                        #default='/home/csy/work1/3D/TheMol/saveMIDI_reFLOW/checkpoint_last.pt',
-                        default='/home/csy/work1/3D/TheMol/saveMIDI_Dual/checkpoint_last.pt',
-                        #default='/home/csy/work1/3D/TheMol/saveOptimalDual/checkpoint_last.pt',
+                        required=True,
                         help='Path to model checkpoint')
     parser.add_argument('--num_samples', type=int, default=1000,
                         help='Number of molecules to generate')
@@ -1398,7 +1394,7 @@ def main():
                         help='Batch size for generation')
     parser.add_argument('--device', type=str, default='cuda',
                         help='Device to use (cuda or cpu)')
-    parser.add_argument('--output_dir', type=str, default='/home/csy/work1/3D/TheMol/flowmol_eval',
+    parser.add_argument('--output_dir', type=str, default='./results',
                         help='Output directory for generated molecules')
     parser.add_argument('--skip_energy', action='store_true',
                         help='Skip energy metric calculation')
@@ -1408,7 +1404,7 @@ def main():
                         help='Number of subsets for CI calculation (default: 1, no CI)')
     args = parser.parse_args()
 
-    # GPU 설정
+    # GPU setup
     if args.device == 'cuda' and torch.cuda.is_available():
         device = torch.device('cuda')
         print(f"Using GPU: {torch.cuda.get_device_name(0)}")
@@ -1416,11 +1412,11 @@ def main():
         device = torch.device('cpu')
         print("Using CPU")
 
-    # 1. 모델 로드
+    # 1. Load model
     print("\n[Step 1] Loading model...")
     model, model_args = load_model(args.checkpoint, device)
 
-    # 2. 분자 생성
+    # 2. Generate molecules
     print("\n[Step 2] Generating molecules...")
     mol_list = sample_molecules(
         model,
@@ -1433,7 +1429,7 @@ def main():
         print("No valid molecules generated. Exiting.")
         return
 
-    # 3. 평가
+    # 3. Evaluate
     print("\n[Step 3] Evaluating molecules...")
     metrics = evaluate_molecules(
         mol_list,
@@ -1442,10 +1438,10 @@ def main():
         n_subsets=args.n_subsets
     )
 
-    # 4. 결과 출력
+    # 4. Print results
     print_metrics(metrics)
 
-    # 5. 결과 저장
+    # 5. Save results
     import json
     output_path = os.path.join(args.output_dir, 'evaluation_results.json')
     os.makedirs(args.output_dir, exist_ok=True)

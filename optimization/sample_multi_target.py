@@ -25,8 +25,7 @@ import json
 from datetime import datetime
 
 # Add paths
-sys.path.insert(0, '/home/csy/work1/3D/TheMol')
-sys.path.insert(0, '/home/csy/anaconda3/envs/lf_cfm_cma/lib/python3.9/site-packages')
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 print("Loading modules...")
 
@@ -46,10 +45,11 @@ from unidock_zmq_client import UniDockClient
 _fscores = None
 
 def _read_fragment_scores():
-    """Fragment scores load (fpscores.pkl.gz)"""
+    """Load fragment scores (fpscores.pkl.gz)"""
     global _fscores
     import os.path as op
-    name = op.join('/home/csy/work1/previous/targetdiff_PINN/utils/evaluation', 'fpscores')
+    # Use data directory relative to this script
+    name = op.join(op.dirname(op.dirname(op.abspath(__file__))), 'data', 'fpscores')
     with gzip.open('%s.pkl.gz' % name, 'rb') as f:
         data = pickle.load(f)
     outDict = {}
@@ -281,12 +281,12 @@ def start_unidock_server(gpu_id, port):
 
     print(f"\nStarting Uni-Dock Server on GPU {gpu_id}, Port {port}")
 
-    server_script = "/home/csy/work1/gnina-torch/unidock_zmq_server.py"
+    server_script = os.environ.get('UNIDOCK_SERVER_SCRIPT', './unidock_zmq_server.py')
     log_dir = "./logs"
     os.makedirs(log_dir, exist_ok=True)
     log_file = os.path.join(log_dir, f"unidock_server_gpu{gpu_id}_port{port}.log")
 
-    conda_activate = "source /home/csy/anaconda3/bin/activate unidock_env"
+    conda_activate = os.environ.get('UNIDOCK_CONDA_ACTIVATE', 'source ~/anaconda3/bin/activate unidock_env')
     server_cmd = f"{conda_activate} && python -u {server_script} --port {port} --gpu {gpu_id} > {log_file} 2>&1"
 
     try:
@@ -377,7 +377,7 @@ def load_model_and_task():
     print("Loading Model...")
     print("="*70)
 
-    checkpoint_path = '/home/csy/work1/3D/TheMol/saveOptimal2_Flow/checkpoint_last.pt'
+    checkpoint_path = './checkpoints/checkpoint_last.pt'  # Path to pretrained checkpoint
     checkpoint = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
     args = checkpoint['args']
     args.cpu = False
@@ -731,7 +731,7 @@ def main():
     parser = argparse.ArgumentParser(description='Multi-Target Ligand Generation with Dual Optimization')
     parser.add_argument('--gpu', type=int, default=0, help='GPU ID to use')
     parser.add_argument('--test-set-dir', type=str,
-                       default="/home/csy/work1/previous/targetdiff_PINN/data/test_set",
+                       default="./data/test_set",
                        help='Test set directory')
     parser.add_argument('--output-dir', type=str, default="./multi_target_dual_results",
                        help='Output directory')

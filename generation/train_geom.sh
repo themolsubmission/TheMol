@@ -1,5 +1,5 @@
-#data_path=/home/csy/work1/3D/Uni-Mol/unimol/example_data/ligands
-data_path=/home/csy/work1/3D/TheMol/GEOM_dataset
+# Configure paths before running
+data_path=/path/to/your/geom_dataset  # Replace with your GEOM dataset path
 save_dir=./saveGEOM # replace to your save path
 arch=unimol_Optimal_padding2
 logfile=${save_dir}/${arch}.log

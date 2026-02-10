@@ -37,36 +37,36 @@ def gaussian(x, mean, std):
 class BondGaussianLayer(nn.Module):
 
     """
-    전략 A: 원자쌍 임베딩으로부터 K개의 (mean, std) 파라미터를 동적으로 예측.
+    Strategy A: Dynamically predict K (mean, std) parameters from atom pair embeddings.
     """
-    def __init__(self, type='Gaussian', K=32, vocab_size=31, hidden_dim=31): # Tip: 32의 배수 사용 권장
+    def __init__(self, type='Gaussian', K=32, vocab_size=31, hidden_dim=31): # Tip: recommend using multiples of 32
         super().__init__()
         self.K = K
-        
-        # 1. 원자 임베딩
+
+        # 1. Atom embedding
         self.atom_embedding = nn.Linear(vocab_size, hidden_dim)
-        
-        # 2. 파라미터 예측기
-        # 입력 차원: hidden_dim (Concat 대신 Sum을 사용할 것이므로 차원이 줄어듦)
+
+        # 2. Parameter predictor
+        # Input dimension: hidden_dim (using Sum instead of Concat reduces dimension)
         self.param_predictor = nn.Sequential(
             nn.Linear(hidden_dim, hidden_dim * 2),
             nn.GELU(),
             nn.Linear(hidden_dim * 2, K * 2)
         )
-        
-        # 3. 분류 헤드
+
+        # 3. Classification head
         self.classifier_head = nn.Linear(K, 5)
-        
-        # [중요] 초기화 전략
+
+        # [Important] Initialization strategy
         self._init_params()
-        self.pred_type = type 
+        self.pred_type = type
         self.classifier_head_ = nn.Linear(32, 5)
     def _init_params(self):
-        # 마지막 레이어의 가중치를 작게 하여 초기 출력을 0에 가깝게 만듦
+        # Make last layer weights small to keep initial output close to 0
         nn.init.xavier_uniform_(self.param_predictor[-1].weight, gain=0.01)
         bias = self.param_predictor[-1].bias.data
 
-        # K=32개 커널을 5개 그룹으로 나누어 초기화
+        # Initialize K=32 kernels divided into 5 groups
         K_per_class = self.K // 5
         for i in range(5):
             if i == 0:  # No bond
@@ -80,37 +80,37 @@ class BondGaussianLayer(nn.Module):
             else:  # Aromatic
                 bias[i*K_per_class:(i+1)*K_per_class].uniform_(1.2, 1.6)
 
-        # Std 초기화: 넓은 범위
+        # Std initialization: wide range
         bias[self.K:].fill_(1.0)
 
     def forward(self, x, atom_type_tensor):
         B, N, _ = x.shape
-        
-        # 1. 임베딩
+
+        # 1. Embedding
         atom_emb = self.atom_embedding(atom_type_tensor.float()) # [B, N, H]
-        
-        # 2. 대칭성 확보 (Symmetry Enforced)
-        # Concat 대신 Broadcasting을 이용한 합(Sum) 사용 -> 순서 불변성(Order Invariance)
+
+        # 2. Ensure symmetry (Symmetry Enforced)
+        # Use Sum via Broadcasting instead of Concat -> Order Invariance
         atom_i = atom_emb.unsqueeze(2) # [B, N, 1, H]
         atom_j = atom_emb.unsqueeze(1) # [B, 1, N, H]
         edge_feature = atom_i + atom_j # [B, N, N, H] (i+j == j+i)
-        
+
         if self.pred_type == 'Gaussian':
-        # 3. 파라미터 예측
+        # 3. Parameter prediction
             params = self.param_predictor(edge_feature) # [B, N, N, K*2]
             mean_raw, std_raw = params.split(self.K, dim=-1)
-            
-            # 4. 제약 조건 적용 (Constraints)
-            # Mean: 항상 양수여야 함. F.softplus 사용 (또는 0~3 범위 제한을 위해 sigmoid * 3.0 등도 가능)
-            mean = F.softplus(mean_raw) 
-            # Std: 항상 양수여야 하며, 너무 작아지는 것(0)을 방지 (+ 1e-5)
+
+            # 4. Apply constraints
+            # Mean: must always be positive. Use F.softplus (or sigmoid * 3.0 for 0~3 range)
+            mean = F.softplus(mean_raw)
+            # Std: must always be positive, prevent from getting too small (0) (+ 1e-5)
             std = F.softplus(std_raw) + 1e-5
-            
-            # 5. 가우시안 적용
+
+            # 5. Apply Gaussian
             x_expanded = x.unsqueeze(-1).expand(-1, -1, -1, self.K)
             feature = gaussian(x_expanded.float(), mean.float(), std.float())
-            
-            # 6. 분류
+
+            # 6. Classification
             return self.classifier_head(feature.type_as(self.atom_embedding.weight))
 
         else:
@@ -691,7 +691,7 @@ class UniMolMAEPaddingModel(BaseUnicoreModel):
                 **kwargs
                 )
         # LOG_STD_MAX = 2
-        # LOG_STD_MIN = -20 # 너무 작은 분산을 막기 위함
+        # LOG_STD_MIN = -20 # Prevent variance from becoming too small
         # latent_logvar = torch.clamp(latent_logvar, LOG_STD_MIN, LOG_STD_MAX)
         
         print(std.max())
@@ -1668,7 +1668,7 @@ class UniMolMIMPaddingModel(BaseUnicoreModel):
                     **kwargs
                     )
             LOG_STD_MAX = 15
-            LOG_STD_MIN = -15 # 너무 작은 분산을 막기 위함
+            LOG_STD_MIN = -15 # Prevent variance from becoming too small
             latent_logvar = torch.clamp(latent_logvar, LOG_STD_MIN, LOG_STD_MAX)
             
             std = torch.exp(0.5 * latent_logvar)
@@ -1702,7 +1702,7 @@ class UniMolMIMPaddingModel(BaseUnicoreModel):
                         **kwargs
                         )
                 LOG_STD_MAX = 15
-                LOG_STD_MIN = -15 # 너무 작은 분산을 막기 위함
+                LOG_STD_MIN = -15 # Prevent variance from becoming too small
                 latent_logvar = torch.clamp(latent_logvar, LOG_STD_MIN, LOG_STD_MAX)
                 
                 std = torch.exp(0.5 * latent_logvar)
@@ -1773,7 +1773,7 @@ class UniMolMIMPaddingModel(BaseUnicoreModel):
                     **kwargs
                     )
             LOG_STD_MAX = 15
-            LOG_STD_MIN = -15 # 너무 작은 분산을 막기 위함
+            LOG_STD_MIN = -15 # Prevent variance from becoming too small
             latent_logvar = torch.clamp(latent_logvar, LOG_STD_MIN, LOG_STD_MAX)
             
             std = torch.exp(0.5 * latent_logvar)
@@ -2481,13 +2481,13 @@ class UniMolOptimalPaddingModel(BaseUnicoreModel):
         
         """Signal-to-Noise Ratio"""
         snr = noisy_dense_encoded_batch["t"].squeeze() / (1 - noisy_dense_encoded_batch["t"].squeeze() + 1e-8)
-        # Min-SNR weighting (방법 1: 직접 clamp)
+        # Min-SNR weighting (method 1: direct clamp)
         weight = torch.clamp(snr, max=5.0)
-        # 또는 (방법 2: normalized version)
-        weight = torch.clamp(snr, max=5.0) / (snr + 1e-8)  # 이건 t→1일 때 weight→0
-        # 또는 (방법 3: standard Min-SNR)
+        # or (method 2: normalized version)
+        weight = torch.clamp(snr, max=5.0) / (snr + 1e-8)  # weight -> 0 as t -> 1
+        # or (method 3: standard Min-SNR)
         weight = torch.minimum(snr, torch.tensor(5.0, device=snr.device))
-        # 최종 loss
+        # Final loss
         x_error = (gt_x_1 - pred_x) * weight.unsqueeze(-1).unsqueeze(-1) 
         
         
@@ -2595,7 +2595,7 @@ class UniMolOptimalPaddingModel(BaseUnicoreModel):
                     **kwargs
                     )
             LOG_STD_MAX = 15
-            LOG_STD_MIN = -15 # 너무 작은 분산을 막기 위함
+            LOG_STD_MIN = -15 # Prevent variance from becoming too small
             latent_logvar = torch.clamp(latent_logvar, LOG_STD_MIN, LOG_STD_MAX)
             
             std = torch.exp(0.5 * latent_logvar)
@@ -2640,7 +2640,7 @@ class UniMolOptimalPaddingModel(BaseUnicoreModel):
                         **kwargs
                         )
                 LOG_STD_MAX = 15
-                LOG_STD_MIN = -15 # 너무 작은 분산을 막기 위함
+                LOG_STD_MIN = -15 # Prevent variance from becoming too small
                 latent_logvar = torch.clamp(latent_logvar, LOG_STD_MIN, LOG_STD_MAX)
                 
                 std = torch.exp(0.5 * latent_logvar)
@@ -2723,7 +2723,7 @@ class UniMolOptimalPaddingModel(BaseUnicoreModel):
                     **kwargs
                     )
             LOG_STD_MAX = 15
-            LOG_STD_MIN = -15 # 너무 작은 분산을 막기 위함
+            LOG_STD_MIN = -15 # Prevent variance from becoming too small
             latent_logvar = torch.clamp(latent_logvar, LOG_STD_MIN, LOG_STD_MAX)
             
             std = torch.exp(0.5 * latent_logvar)
@@ -3570,7 +3570,7 @@ class UniMolOptimalPaddingModel2(BaseUnicoreModel):
                     **kwargs
                     )
             LOG_STD_MAX = 15
-            LOG_STD_MIN = -15 # 너무 작은 분산을 막기 위함
+            LOG_STD_MIN = -15 # Prevent variance from becoming too small
             latent_logvar = torch.clamp(latent_logvar, LOG_STD_MIN, LOG_STD_MAX)
             
             std = torch.exp(0.5 * latent_logvar)
@@ -3615,7 +3615,7 @@ class UniMolOptimalPaddingModel2(BaseUnicoreModel):
                         **kwargs
                         )
                 LOG_STD_MAX = 15
-                LOG_STD_MIN = -15 # 너무 작은 분산을 막기 위함
+                LOG_STD_MIN = -15 # Prevent variance from becoming too small
                 latent_logvar = torch.clamp(latent_logvar, LOG_STD_MIN, LOG_STD_MAX)
                 
                 std = torch.exp(0.5 * latent_logvar)
@@ -3700,7 +3700,7 @@ class UniMolOptimalPaddingModel2(BaseUnicoreModel):
                     **kwargs
                     )
             LOG_STD_MAX = 15
-            LOG_STD_MIN = -15 # 너무 작은 분산을 막기 위함
+            LOG_STD_MIN = -15 # Prevent variance from becoming too small
             latent_logvar = torch.clamp(latent_logvar, LOG_STD_MIN, LOG_STD_MAX)
             
             std = torch.exp(0.5 * latent_logvar)
@@ -4562,7 +4562,7 @@ class UniMolOptimalPaddingModelDual(BaseUnicoreModel):
                     **kwargs
                     )
             LOG_STD_MAX = 15
-            LOG_STD_MIN = -15 # 너무 작은 분산을 막기 위함
+            LOG_STD_MIN = -15 # Prevent variance from becoming too small
             latent_logvar = torch.clamp(latent_logvar, LOG_STD_MIN, LOG_STD_MAX)
             
             std = torch.exp(0.5 * latent_logvar)
@@ -4607,7 +4607,7 @@ class UniMolOptimalPaddingModelDual(BaseUnicoreModel):
                         **kwargs
                         )
                 LOG_STD_MAX = 15
-                LOG_STD_MIN = -15 # 너무 작은 분산을 막기 위함
+                LOG_STD_MIN = -15 # Prevent variance from becoming too small
                 latent_logvar = torch.clamp(latent_logvar, LOG_STD_MIN, LOG_STD_MAX)
                 
                 std = torch.exp(0.5 * latent_logvar)
@@ -4692,7 +4692,7 @@ class UniMolOptimalPaddingModelDual(BaseUnicoreModel):
                     **kwargs
                     )
             LOG_STD_MAX = 15
-            LOG_STD_MIN = -15 # 너무 작은 분산을 막기 위함
+            LOG_STD_MIN = -15 # Prevent variance from becoming too small
             latent_logvar = torch.clamp(latent_logvar, LOG_STD_MIN, LOG_STD_MAX)
             
             std = torch.exp(0.5 * latent_logvar)
@@ -5515,7 +5515,7 @@ class UniMolOptimalPaddingModelType2(BaseUnicoreModel):
                     **kwargs
                     )
             LOG_STD_MAX = 15
-            LOG_STD_MIN = -15 # 너무 작은 분산을 막기 위함
+            LOG_STD_MIN = -15 # Prevent variance from becoming too small
             latent_logvar = torch.clamp(latent_logvar, LOG_STD_MIN, LOG_STD_MAX)
             
             std = torch.exp(0.5 * latent_logvar)
@@ -5559,7 +5559,7 @@ class UniMolOptimalPaddingModelType2(BaseUnicoreModel):
                         **kwargs
                         )
                 LOG_STD_MAX = 15
-                LOG_STD_MIN = -15 # 너무 작은 분산을 막기 위함
+                LOG_STD_MIN = -15 # Prevent variance from becoming too small
                 latent_logvar = torch.clamp(latent_logvar, LOG_STD_MIN, LOG_STD_MAX)
                 
                 std = torch.exp(0.5 * latent_logvar)
@@ -5645,7 +5645,7 @@ class UniMolOptimalPaddingModelType2(BaseUnicoreModel):
                     **kwargs
                     )
             LOG_STD_MAX = 15
-            LOG_STD_MIN = -15 # 너무 작은 분산을 막기 위함
+            LOG_STD_MIN = -15 # Prevent variance from becoming too small
             latent_logvar = torch.clamp(latent_logvar, LOG_STD_MIN, LOG_STD_MAX)
             
             std = torch.exp(0.5 * latent_logvar)

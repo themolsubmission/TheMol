@@ -146,7 +146,7 @@ total_failed=0
 num_active_datasets=0
 
 for dataset_dir in "${datasets[@]}"; do
-    full_path="/home/csy/work1/3D/TheMol/${dataset_dir}"
+    full_path="./${dataset_dir}"
 
     # Check if directory exists
     if [ ! -d "$full_path" ]; then
@@ -261,7 +261,7 @@ echo "========================================"
 echo "Best Result per Dataset (vs TDC SOTA)"
 echo "========================================"
 for dataset_dir in "${datasets[@]}"; do
-    full_path="/home/csy/work1/3D/TheMol/${dataset_dir}"
+    full_path="./${dataset_dir}"
     summary_file="${full_path}/results_summary.txt"
 
     if [ ! -f "$summary_file" ]; then

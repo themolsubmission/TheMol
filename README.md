@@ -393,14 +393,6 @@ python extract_latent.py \
     --output_path latent.pkl
 ```
 
-**Aggregation Methods:**
-| Method | Description |
-|--------|-------------|
-| `mean` | Mean pooling over atom latents (default) |
-| `sum` | Sum pooling over atom latents |
-| `cls` | Use first token (BOS) latent |
-| `all` | Return all atom-level latents |
-
 **Output Format:**
 ```python
 # Output pickle contains:

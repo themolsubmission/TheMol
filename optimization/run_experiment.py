@@ -1,14 +1,14 @@
 """
 Comprehensive Experiment for Molecule Generation Optimization
 
-실험 목적:
+Experiment objectives:
 1. No optimization (baseline) - Mean Docking, Mean SA
 2. Docking only optimization - Mean Docking, Mean SA
 3. SA only optimization - Mean Docking, Mean SA
-4. Dual optimization (다양한 sa_weight 값) - Mean Docking, Mean SA
+4. Dual optimization (various sa_weight values) - Mean Docking, Mean SA
 
 Usage:
-    python run_comprehensive_experiment.py
+    python run_experiment.py
 """
 
 import sys
@@ -32,8 +32,7 @@ from datetime import datetime
 warnings.filterwarnings('ignore', category=DeprecationWarning, module='rdkit')
 
 # Add paths
-sys.path.insert(0, '/home/csy/work1/3D/TheMol')
-sys.path.insert(0, '/home/csy/anaconda3/envs/lf_cfm_cma/lib/python3.9/site-packages')
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import unicore modules
 from unicore import checkpoint_utils, options, tasks, utils
@@ -42,15 +41,16 @@ from unidock_zmq_client import UniDockClient
 import glob
 
 # ============================================================================
-# SA Score 관련 함수들
+# SA Score Related Functions
 # ============================================================================
 _fscores = None
 
 def _read_fragment_scores():
-    """Fragment scores 로드 (fpscores.pkl.gz)"""
+    """Load fragment scores (fpscores.pkl.gz)"""
     global _fscores
     import os.path as op
-    name = op.join('/home/csy/work1/previous/targetdiff_PINN/utils/evaluation', 'fpscores')
+    # Use data directory relative to this script
+    name = op.join(op.dirname(op.dirname(op.abspath(__file__))), 'data', 'fpscores')
     with gzip.open('%s.pkl.gz' % name, 'rb') as f:
         data = pickle.load(f)
     outDict = {}
@@ -65,7 +65,7 @@ def _num_bridgeheads_and_spiro(mol):
     return nBridgehead, nSpiro
 
 def _calculate_sa_score(m):
-    """SA Score 계산 (1-10 범위, 낮을수록 합성 쉬움)"""
+    """Calculate SA Score (range 1-10, lower is easier to synthesize)"""
     global _fscores
     if _fscores is None:
         _read_fragment_scores()
@@ -118,7 +118,7 @@ def _calculate_sa_score(m):
     return sascore
 
 def compute_sa_score(rdmol):
-    """정규화된 SA Score 계산 (0-1 범위, 높을수록 합성 쉬움)"""
+    """Calculate normalized SA Score (range 0-1, higher is easier to synthesize)"""
     try:
         rdmol = Chem.MolFromSmiles(Chem.MolToSmiles(rdmol))
         if rdmol is None:
@@ -130,10 +130,10 @@ def compute_sa_score(rdmol):
         return 0.5
 
 # ============================================================================
-# Utility 함수들
+# Utility Functions
 # ============================================================================
 def set_random_seed(seed=42):
-    """재현성을 위한 랜덤 시드 고정"""
+    """Set random seed for reproducibility"""
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -143,7 +143,7 @@ def set_random_seed(seed=42):
     torch.backends.cudnn.benchmark = False
 
 def filter_single_fragment_molecules(mol_list):
-    """단일 fragment 분자만 필터링"""
+    """Filter molecules with single fragment only"""
     filtered_list = []
     for rd_mol, ligand_path in mol_list:
         if rd_mol is not None:
@@ -153,7 +153,7 @@ def filter_single_fragment_molecules(mol_list):
     return filtered_list
 
 def calculate_sa_scores(mol_list):
-    """분자 리스트의 SA Score 계산"""
+    """Calculate SA scores for a list of molecules"""
     sa_scores = {}
     for rd_mol, ligand_path in mol_list:
         ligand_name = os.path.basename(ligand_path)
@@ -167,7 +167,7 @@ def calculate_sa_scores(mol_list):
 def dock_with_retry(ligand_paths, receptor, center_x, center_y, center_z,
                     size_x, size_y, size_z, output_dir, scoring="vina",
                     search_mode="fast", num_modes=1, port=5556, min_batch_size=1):
-    """배치 도킹 실패 시 이진 분할하여 재시도"""
+    """Retry batch docking with binary split on failure"""
     if len(ligand_paths) == 0:
         return {}
 
@@ -224,7 +224,7 @@ def dock_with_retry(ligand_paths, receptor, center_x, center_y, center_z,
         return merged
 
 def get_ligand_info(sdf_path):
-    """Reference ligand SDF 파일에서 분자의 중심 좌표와 원자 개수 계산"""
+    """Calculate center coordinates and atom count from reference ligand SDF file"""
     try:
         supplier = Chem.SDMolSupplier(sdf_path, removeHs=False)
         if supplier and len(supplier) > 0 and supplier[0]:
@@ -242,7 +242,7 @@ def get_ligand_info(sdf_path):
         return None
 
 def find_reference_ligand(receptor_path):
-    """Receptor path에서 reference ligand SDF 파일 찾기"""
+    """Find reference ligand SDF file from receptor path"""
     target_dir = os.path.dirname(receptor_path)
     ligand_files = glob.glob(os.path.join(target_dir, "*.sdf"))
     if not ligand_files:
@@ -252,23 +252,23 @@ def find_reference_ligand(receptor_path):
 
 
 def select_random_targets(test_set_dir, num_targets=5, seed=42):
-    """test_set 디렉토리에서 임의로 타겟 단백질을 선택
+    """Select random target proteins from test_set directory
 
     Args:
-        test_set_dir: test_set 디렉토리 경로
-        num_targets: 선택할 타겟 개수
-        seed: 랜덤 시드
+        test_set_dir: Path to test_set directory
+        num_targets: Number of targets to select
+        seed: Random seed
 
     Returns:
         list of dict: [{'name': target_name, 'receptor': receptor_path, 'ref_ligand': ligand_path}, ...]
     """
     random.seed(seed)
 
-    # 디렉토리 목록 가져오기 (파일 제외)
+    # Get directory list (exclude files)
     all_items = os.listdir(test_set_dir)
     target_dirs = [d for d in all_items if os.path.isdir(os.path.join(test_set_dir, d))]
 
-    # 유효한 타겟만 필터링 (receptor pdbqt 파일이 있는 것)
+    # Filter only valid targets (those with receptor pdbqt file)
     valid_targets = []
     for target_name in target_dirs:
         target_path = os.path.join(test_set_dir, target_name)
@@ -283,7 +283,7 @@ def select_random_targets(test_set_dir, num_targets=5, seed=42):
                     'ref_ligand': ref_ligand
                 })
 
-    # 임의로 num_targets개 선택
+    # Randomly select num_targets
     if len(valid_targets) < num_targets:
         print(f"Warning: Only {len(valid_targets)} valid targets found, using all of them")
         selected = valid_targets
@@ -296,8 +296,8 @@ def select_random_targets(test_set_dir, num_targets=5, seed=42):
 # Model Loading
 # ============================================================================
 def load_model_and_task():
-    """모델과 task 로드"""
-    checkpoint_path = '/home/csy/work1/3D/TheMol/saveOptimal2_Flow/checkpoint_last.pt'
+    """Load model and task"""
+    checkpoint_path = './checkpoints/checkpoint_last.pt'  # Path to pretrained checkpoint
     checkpoint = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
     args = checkpoint['args']
     args.cpu = False
@@ -565,8 +565,8 @@ class ExperimentRunner:
                 solutions = []
                 for idx in range(optimizer.population_size):
                     z_flat = z_origin_list[idx]
-                    # 실패 패널티를 1.0으로 설정 (SA=0보다 약간 나쁨)
-                    # 성공: -10 ~ 0, 실패: +1
+                    # Set failure penalty to 1.0 (slightly worse than SA=0)
+                    # Success: -10 ~ 0, Failure: +1
                     score = mol_index_to_score.get(idx + 1, 10.0)
                     solutions.append((z_flat, score))
 
@@ -685,18 +685,18 @@ class ExperimentRunner:
 
 
 def run_experiments_for_target(model, task, target_info, args, sa_weights, experiments):
-    """단일 타겟에 대해 선택된 실험 실행
+    """Run selected experiments for a single target
 
     Args:
-        model: 로드된 모델
-        task: 로드된 task
+        model: Loaded model
+        task: Loaded task
         target_info: {'name': str, 'receptor': str, 'ref_ligand': str}
-        args: 명령줄 인자
-        sa_weights: SA weight 리스트
-        experiments: 실행할 실험 set {'docking', 'sa', 'dual'}
+        args: Command line arguments
+        sa_weights: List of SA weights
+        experiments: Set of experiments to run {'docking', 'sa', 'dual'}
 
     Returns:
-        dict: 실험 결과
+        dict: Experiment results
     """
     target_name = target_info['name']
     receptor = target_info['receptor']
@@ -743,7 +743,7 @@ def run_experiments_for_target(model, task, target_info, args, sa_weights, exper
     # Run experiments
     results = {}
 
-    # 1. No optimization (baseline) - 항상 실행
+    # 1. No optimization (baseline) - always run
     results['no_optimization'] = runner.run_no_optimization()
 
     # 2. Docking only optimization
@@ -764,18 +764,18 @@ def run_experiments_for_target(model, task, target_info, args, sa_weights, exper
 
 
 def print_final_summary(all_results, sa_weights, experiments):
-    """모든 타겟에 대한 최종 결과 요약 출력
+    """Print final summary of results for all targets
 
     Args:
         all_results: {target_name: results_dict, ...}
-        sa_weights: SA weight 리스트
-        experiments: 실행된 실험 set {'docking', 'sa', 'dual'}
+        sa_weights: List of SA weights
+        experiments: Set of experiments run {'docking', 'sa', 'dual'}
     """
     print("\n" + "="*100)
     print("  FINAL EXPERIMENT SUMMARY - ALL TARGETS")
     print("="*100)
 
-    # 각 타겟별 결과 출력
+    # Print results for each target
     for target_name, results in all_results.items():
         print(f"\n{'='*100}")
         print(f"  Target: {target_name}")
@@ -783,7 +783,7 @@ def print_final_summary(all_results, sa_weights, experiments):
         print(f"{'Experiment':<30} {'Mean Docking':<15} {'Mean SA':<15} {'Valid':<10}")
         print("-"*70)
 
-        # No optimization (baseline) - 항상 출력
+        # No optimization (baseline) - always print
         exp = results['no_optimization']
         print(f"{'No Optimization (Baseline)':<30} {exp['mean_docking']:<15.2f} {exp['mean_sa']:<15.2f} {exp['num_valid']:<10}")
 
@@ -802,7 +802,7 @@ def print_final_summary(all_results, sa_weights, experiments):
             for key, exp in results['dual'].items():
                 print(f"{'Dual (' + key + ')':<30} {exp['mean_docking']:<15.2f} {exp['mean_sa']:<15.2f} {exp['num_valid']:<10}")
 
-    # 평균 결과 계산 및 출력
+    # Calculate and print average results
     print("\n" + "="*100)
     print("  AVERAGE ACROSS ALL TARGETS")
     print("="*100)
@@ -812,7 +812,7 @@ def print_final_summary(all_results, sa_weights, experiments):
     target_names = list(all_results.keys())
     num_targets = len(target_names)
 
-    # No optimization average - 항상 출력
+    # No optimization average - always print
     avg_docking = sum(all_results[t]['no_optimization']['mean_docking'] for t in target_names) / num_targets
     avg_sa = sum(all_results[t]['no_optimization']['mean_sa'] for t in target_names) / num_targets
     avg_valid = sum(all_results[t]['no_optimization']['num_valid'] for t in target_names) / num_targets
@@ -856,7 +856,7 @@ def main():
     parser.add_argument('--num-targets', type=int, default=5,
                        help='Number of target proteins to test')
     parser.add_argument('--test-set-dir', type=str,
-                       default='/home/csy/work1/previous/targetdiff_PINN/data/test_set',
+                       default='./data/test_set',
                        help='Directory containing target protein folders')
     parser.add_argument('--experiments', type=str, default='all',
                        help='Experiments to run: all, none, docking, sa, dual (comma-separated for multiple, e.g., "docking,sa")')
@@ -899,7 +899,7 @@ def main():
 
     # Select targets
     if args.target:
-        # 특정 타겟 지정
+        # Specific target specified
         target_path = os.path.join(args.test_set_dir, args.target)
         pdbqt_files = glob.glob(os.path.join(target_path, "*_rec.pdbqt"))
         if pdbqt_files:
@@ -911,7 +911,7 @@ def main():
             print(f"Error: Target {args.target} not found or no receptor file")
             sys.exit(1)
     else:
-        # 기존 랜덤 선택
+        # Random selection
         print(f"\nSelecting {args.num_targets} random targets...")
         targets = select_random_targets(args.test_set_dir, args.num_targets, args.seed)
     print(f"Selected targets:")

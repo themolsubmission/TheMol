@@ -11,24 +11,24 @@ from unicore.data import BaseWrapperDataset
 
 class BondTypeDataset(BaseWrapperDataset):
     """
-    SMILES로부터 결합 타입 정보를 추출하여 distance_target과 동일한 shape의
-    결합 타입 행렬을 생성하는 데이터셋
+    Dataset that extracts bond type information from SMILES and generates
+    bond type matrix with the same shape as distance_target
 
-    결합 타입 인코딩:
-    - 0: 결합 없음
-    - 1: 단일 결합 (Single bond)
-    - 2: 이중 결합 (Double bond)
-    - 3: 삼중 결합 (Triple bond)
-    - 4: 방향족 결합 (Aromatic bond)
+    Bond type encoding:
+    - 0: No bond
+    - 1: Single bond
+    - 2: Double bond
+    - 3: Triple bond
+    - 4: Aromatic bond
     """
 
     def __init__(self, raw_dataset, dataset, max_atoms=256, remove_hydrogen=True):
         """
         Args:
-            raw_dataset: 원시 LMDB 데이터셋 (SMILES 포함)
-            dataset: 기존 처리된 데이터셋
-            max_atoms: 최대 원자 수
-            remove_hydrogen: 수소 원자 제거 여부
+            raw_dataset: Raw LMDB dataset (containing SMILES)
+            dataset: Pre-processed dataset
+            max_atoms: Maximum number of atoms
+            remove_hydrogen: Whether to remove hydrogen atoms
         """
         super().__init__(dataset)
         self.raw_dataset = raw_dataset
@@ -38,20 +38,20 @@ class BondTypeDataset(BaseWrapperDataset):
 
     def smiles_to_bond_matrix(self, smiles):
         """
-        SMILES 문자열로부터 결합 타입 행렬 생성
+        Generate bond type matrix from SMILES string
 
         Args:
-            smiles (str): SMILES 문자열
+            smiles (str): SMILES string
 
         Returns:
-            np.ndarray: [max_atoms, max_atoms] 결합 타입 행렬
+            np.ndarray: [max_atoms, max_atoms] bond type matrix
         """
         try:
             mol = Chem.MolFromSmiles(smiles)
             if mol is None:
                 return np.zeros((self.max_atoms, self.max_atoms), dtype=np.int32)
 
-            # 수소 원자 처리
+            # Handle hydrogen atoms
             if not self.remove_hydrogen:
                 mol = Chem.AddHs(mol)
 
@@ -59,18 +59,18 @@ class BondTypeDataset(BaseWrapperDataset):
             if num_atoms > self.max_atoms:
                 num_atoms = self.max_atoms
 
-            # 결합 타입 행렬 초기화
+            # Initialize bond type matrix
             bond_matrix = np.zeros((self.max_atoms, self.max_atoms), dtype=np.int32)
 
-            # 결합 정보 추출
+            # Extract bond information
             for bond in mol.GetBonds():
                 i, j = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
 
-                # 인덱스 범위 체크
+                # Check index range
                 if i >= self.max_atoms or j >= self.max_atoms:
                     continue
 
-                # 결합 타입 변환
+                # Convert bond type
                 bond_type = bond.GetBondType()
 
                 if bond_type == Chem.rdchem.BondType.SINGLE:
@@ -82,9 +82,9 @@ class BondTypeDataset(BaseWrapperDataset):
                 elif bond_type == Chem.rdchem.BondType.AROMATIC:
                     bond_value = 4
                 else:
-                    bond_value = 1  # 기타 결합은 단일결합으로 처리
+                    bond_value = 1  # Treat other bonds as single bond
 
-                # 대칭 행렬 설정
+                # Set symmetric matrix
                 bond_matrix[i, j] = bond_value
                 bond_matrix[j, i] = bond_value
 
@@ -97,39 +97,39 @@ class BondTypeDataset(BaseWrapperDataset):
     @lru_cache(maxsize=16)
     def __getitem__(self, idx):
         """
-        데이터 아이템 가져오기 (결합 타입 정보 추가)
+        Get data item (with bond type information added)
 
         Returns:
-            dict: 기존 데이터 + 'bond_types' 키
+            dict: Existing data + 'bond_types' key
         """
-        # 기존 처리된 데이터 가져오기
+        # Get pre-processed data
         item = self.dataset[idx].copy()
 
-        # 원시 데이터에서 SMILES 가져오기
+        # Get SMILES from raw data
         try:
             raw_item = self.raw_dataset[idx]
             smiles = raw_item.get('smi', '')
 
-            # 결합 타입 행렬 생성
+            # Generate bond type matrix
             bond_matrix = self.smiles_to_bond_matrix(smiles)
             item['bond_types'] = bond_matrix.astype(np.int32)
 
         except Exception as e:
             print(f"Error processing index {idx}: {e}")
-            # 오류 시 빈 행렬 생성
+            # Generate empty matrix on error
             item['bond_types'] = np.zeros((self.max_atoms, self.max_atoms), dtype=np.int32)
 
         return item
 
     def get_bond_type_stats(self, num_samples=1000):
         """
-        결합 타입 통계 정보 반환 (디버깅용)
+        Return bond type statistics (for debugging)
 
         Args:
-            num_samples (int): 분석할 샘플 수
+            num_samples (int): Number of samples to analyze
 
         Returns:
-            dict: 결합 타입별 개수
+            dict: Count per bond type
         """
         bond_counts = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0}
 
@@ -154,27 +154,27 @@ class BondTypeDataset(BaseWrapperDataset):
 
 class BondTypeLoss:
     """
-    결합 타입 예측을 위한 손실 함수 (예시)
+    Loss function for bond type prediction (example)
     """
 
     def __init__(self, bond_type_weights=None):
         """
         Args:
-            bond_type_weights (dict): 각 결합 타입에 대한 가중치
+            bond_type_weights (dict): Weights for each bond type
         """
         self.bond_type_weights = bond_type_weights or {0: 0.1, 1: 1.0, 2: 2.0, 3: 3.0, 4: 1.5}
 
     def compute_loss(self, pred_bond_types, target_bond_types, mask=None):
         """
-        결합 타입 예측 손실 계산
+        Compute bond type prediction loss
 
         Args:
-            pred_bond_types: [batch_size, max_atoms, max_atoms, num_bond_types] 예측값
-            target_bond_types: [batch_size, max_atoms, max_atoms] 타겟 결합 타입
-            mask: [batch_size, max_atoms, max_atoms] 마스크 (유효한 원자 쌍)
+            pred_bond_types: [batch_size, max_atoms, max_atoms, num_bond_types] predictions
+            target_bond_types: [batch_size, max_atoms, max_atoms] target bond types
+            mask: [batch_size, max_atoms, max_atoms] mask (valid atom pairs)
 
         Returns:
-            torch.Tensor: 손실값
+            torch.Tensor: Loss value
         """
         import torch.nn.functional as F
 
@@ -184,7 +184,7 @@ class BondTypeLoss:
         pred_flat = pred_bond_types.view(-1, num_classes)
         target_flat = target_bond_types.view(-1)
 
-        # 마스크 적용
+        # Apply mask
         if mask is not None:
             mask_flat = mask.view(-1)
             pred_flat = pred_flat[mask_flat]

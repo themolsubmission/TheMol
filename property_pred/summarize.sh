@@ -65,7 +65,7 @@ num_active_datasets=0
 
 # First, count active datasets
 for dataset_dir in "${datasets[@]}"; do
-    full_path="/home/csy/work1/3D/TheMol/${dataset_dir}"
+    full_path="./${dataset_dir}"
     if [ -d "$full_path" ]; then
         num_active_datasets=$((num_active_datasets + 1))
     fi
@@ -85,7 +85,7 @@ for lr in "${learning_rates[@]}"; do
         for dropout in "${pooler_dropouts[@]}"; do
             for warmup in "${warmup_ratios[@]}"; do
                 for dataset_dir in "${datasets[@]}"; do
-                    full_path="/home/csy/work1/3D/TheMol/${dataset_dir}"
+                    full_path="./${dataset_dir}"
 
                     # Check if directory exists
                     if [ ! -d "$full_path" ]; then
@@ -114,7 +114,7 @@ done
 
 # Print results per dataset
 for dataset_dir in "${datasets[@]}"; do
-    full_path="/home/csy/work1/3D/TheMol/${dataset_dir}"
+    full_path="./${dataset_dir}"
 
     # Check if directory exists
     if [ ! -d "$full_path" ]; then
@@ -198,7 +198,7 @@ echo "========================================"
 echo "Best Result per Dataset"
 echo "========================================"
 for dataset_dir in "${datasets[@]}"; do
-    full_path="/home/csy/work1/3D/TheMol/${dataset_dir}"
+    full_path="./${dataset_dir}"
     summary_file="${full_path}/results_summary.txt"
 
     if [ ! -f "$summary_file" ]; then

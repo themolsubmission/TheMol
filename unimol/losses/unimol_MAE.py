@@ -475,7 +475,10 @@ class UniMolOptimalLoss2(UnicoreLoss):
         self.idx = 0
         self.bond_extractor = CompleteBondExtractor(task)
         #self.bond_extractor = FixedCompleteBondExtractor(task)
-        with open('/home/csy/work1/3D/TheMol/unimol/example_data/total_dict.pickle', 'rb') as f:
+        # Load property table if available
+        import os
+        property_table_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'total_dict.pickle')
+        with open(property_table_path, 'rb') as f:
             self.property_table = pickle.load(f)
         self.task = task
 
@@ -491,29 +494,29 @@ class UniMolOptimalLoss2(UnicoreLoss):
         R_random
     ):
         """
-        Rotation consistency loss 계산.
+        Compute rotation consistency loss.
 
-        동일한 분자에 대해:
-        - 원본 좌표 → rot_mat_1 → canonical
-        - 회전된 좌표 → rot_mat_2 → canonical (동일해야 함)
+        For the same molecule:
+        - Original coordinates → rot_mat_1 → canonical
+        - Rotated coordinates → rot_mat_2 → canonical (should be the same)
 
-        수학적 관계: rot_mat_1 = R_random @ rot_mat_2
-        따라서: R_random^T @ rot_mat_1 ≈ rot_mat_2
+        Mathematical relationship: rot_mat_1 = R_random @ rot_mat_2
+        Therefore: R_random^T @ rot_mat_1 ≈ rot_mat_2
 
         Args:
-            model: 모델 인스턴스
-            original_coord: 회전 적용 전 원본 좌표 [B, N, 3]
-            src_tokens: 원자 토큰 [B, N]
-            src_distance: 거리 행렬 [B, N, N]
-            src_edge_type: 엣지 타입 [B, N, N]
-            src_bond_type: 결합 타입 [B, N, N]
-            rot_mat_rotated: 회전된 좌표에서 예측된 rot_mat (rot_mat_2) [B, 3, 3]
-            R_random: 적용된 랜덤 회전 행렬 [B, 3, 3]
+            model: Model instance
+            original_coord: Original coordinates before rotation [B, N, 3]
+            src_tokens: Atom tokens [B, N]
+            src_distance: Distance matrix [B, N, N]
+            src_edge_type: Edge type [B, N, N]
+            src_bond_type: Bond type [B, N, N]
+            rot_mat_rotated: Predicted rot_mat from rotated coordinates (rot_mat_2) [B, 3, 3]
+            R_random: Applied random rotation matrix [B, 3, 3]
 
         Returns:
-            rotation_consistency_loss: 스칼라 loss 값
+            rotation_consistency_loss: Scalar loss value
         """
-        # 원본 좌표로 rot_mat 예측 (rot_mat_1)
+        # Predict rot_mat from original coordinates (rot_mat_1)
         _, rot_mat_original = model.rot(
             src_tokens,
             src_distance,
@@ -522,7 +525,7 @@ class UniMolOptimalLoss2(UnicoreLoss):
             src_bond_type,
         )
 
-        # 수학적 관계: rot_mat_2 = R_random @ rot_mat_1
+        # Mathematical relationship: rot_mat_2 = R_random @ rot_mat_1
         expected_rot_mat_2 = torch.bmm(R_random, rot_mat_original)
 
         # Frobenius norm loss
@@ -548,7 +551,7 @@ class UniMolOptimalLoss2(UnicoreLoss):
         sample[input_key]['src_tokens'][sample[input_key]['src_tokens'] == 1] = 0
         sample[input_key]['src_tokens'][sample[input_key]['src_tokens'] == 2] = 0
 
-        # 원본 좌표 저장 (rotation consistency loss 계산용)
+        # Save original coordinates (for rotation consistency loss computation)
         original_coord = sample[input_key]['src_coord'].clone()
 
         sample, R_random, rotation_applied = apply_random_rotation_to_target_coords(sample, target_key, apply_prob=1.0)
@@ -1155,7 +1158,7 @@ class UniMolOptimalLossTypeC(UnicoreLoss):
         self.idx = 0
         self.bond_extractor = CompleteBondExtractor(task)
         #self.bond_extractor = FixedCompleteBondExtractor(task)
-        # with open('/home/csy/work1/3D/TheMol/unimol/example_data/total_dict.pickle', 'rb') as f:
+        # with open('./unimol/example_data/total_dict.pickle', 'rb') as f:
         #     self.property_table = pickle.load(f)
 
         
@@ -1751,11 +1754,11 @@ class UniMolOptimalLossTypeC(UnicoreLoss):
         
 class EDMLoss(nn.Module):
     """
-    주어진 제곱 거리 행렬(squared distance matrix)이 유효한 유클리드 거리 행렬(EDM)인지
-    확인하고, 아닐 경우 페널티를 부과하는 손실 함수.
+    Loss function that checks if a given squared distance matrix is a valid
+    Euclidean Distance Matrix (EDM), and penalizes if not.
 
-    이 손실은 그람 행렬(Gram matrix)의 고유값을 기반으로 계산되며,
-    음수 고유값이 존재할 경우에만 페널티를 적용합니다.
+    This loss is computed based on eigenvalues of the Gram matrix,
+    and only applies penalty when negative eigenvalues exist.
     """
     def __init__(self):
         super(EDMLoss, self).__init__()
@@ -1763,41 +1766,41 @@ class EDMLoss(nn.Module):
     def forward(self, d_squared: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            d_squared (torch.Tensor): 모델이 예측한 제곱 거리 행렬.
+            d_squared (torch.Tensor): Model predicted squared distance matrix.
                                       Shape: [batch_size, num_atoms, num_atoms]
 
         Returns:
-            torch.Tensor: EDM 제약 조건을 위반한 것에 대한 손실 값 (스칼라).
+            torch.Tensor: Loss value for EDM constraint violation (scalar).
         """
-        # 입력 텐서로부터 batch_size와 num_atoms를 가져옵니다.
+        # Get batch_size and num_atoms from input tensor
         d_squared = d_squared**2
         batch_size, num_atoms, _ = d_squared.shape
 
-        # 1. 중심화 행렬(Centering Matrix) J를 생성합니다.
+        # 1. Create centering matrix J
         # J = I - (1/N) * 1 * 1^T
-        # 여기서 N은 num_atoms, I는 단위 행렬, 1은 모든 요소가 1인 벡터입니다.
+        # where N is num_atoms, I is identity matrix, 1 is all-ones vector
         identity = torch.eye(num_atoms, device=d_squared.device, dtype=d_squared.dtype)
         ones = torch.ones(num_atoms, num_atoms, device=d_squared.device, dtype=d_squared.dtype)
         j_matrix = identity - (1 / num_atoms) * ones
 
-        # 2. 중심화 행렬 J를 이용해 그람 행렬(Gram Matrix) G를 계산합니다.
+        # 2. Compute Gram matrix G using centering matrix J
         # G = -1/2 * J * D^2 * J
-        # PyTorch의 @ 연산자는 자동으로 배치 행렬 곱셈을 처리합니다.
+        # PyTorch's @ operator automatically handles batch matrix multiplication
         gram_matrix = -0.5 * (j_matrix @ d_squared @ j_matrix)
         gram_matrix = (gram_matrix + gram_matrix.transpose(-1, -2)) / 2
 
-        # 3. 그람 행렬의 고유값을 계산합니다.
-        # 그람 행렬은 대칭 행렬이므로, torch.linalg.eigvalsh를 사용하여
-        # 효율적으로 실수 고유값만 계산합니다.
+        # 3. Compute eigenvalues of Gram matrix
+        # Since Gram matrix is symmetric, use torch.linalg.eigvalsh
+        # to efficiently compute real eigenvalues only
         eigenvalues = torch.linalg.eigvalsh(gram_matrix)
 
-        # 4. 음수 고유값에 대해서만 페널티를 부과합니다.
-        # torch.relu(-eigenvalues)는 음수 고유값을 양수로 바꾸고,
-        # 양수 고유값은 0으로 만듭니다.
-        # 이 페널티의 합을 배치 사이즈로 나누어 평균 손실을 계산합니다.
-        # 작은 epsilon 값을 더해 수치적 안정성을 확보할 수 있습니다.
+        # 4. Penalize only negative eigenvalues
+        # torch.relu(-eigenvalues) converts negative eigenvalues to positive,
+        # and zeros out positive eigenvalues.
+        # Divide sum of penalties by batch size to get mean loss.
+        # Add small epsilon for numerical stability.
         #penalty = torch.relu(-eigenvalues).sum() / batch_size
-        
+
         epsilon = 1e-8
         penalty = torch.relu(-eigenvalues - epsilon).sum(dim=1).mean()
         return penalty
@@ -1884,18 +1887,18 @@ import numpy as np
 from rdkit import Chem
 
 class CompleteBondExtractor:
-    """완전한 결합 타입 추출기"""
+    """Complete bond type extractor"""
 
     def __init__(self, task=None):
         self.task = task
         self.dictionary = task.dictionary if task else None
         self.padding_idx = task.dictionary.pad() if task else 0
 
-        # 기본 토큰 매핑
+        # Default token mapping
         self.token_to_symbol = self._build_token_mapping()
 
     def _build_token_mapping(self):
-        """토큰 → 원자 기호 매핑 구축"""
+        """Build token -> atom symbol mapping"""
         if self.dictionary:
             mapping = {}
             for i in range(len(self.dictionary)):
@@ -1909,36 +1912,36 @@ class CompleteBondExtractor:
             return {0: 'PAD', 1: 'C', 2: 'O', 3: 'N', 4: 'S', 5: 'F', 6: 'Cl', 7: 'Br'}
 
     def get_smiles_from_sample(self, sample):
-        """Sample에서 SMILES 추출 (여러 방법 지원)"""
+        """Extract SMILES from sample (supports multiple methods)"""
 
-        # 방법 1: sample에 직접 포함된 경우
+        # Method 1: Directly included in sample
         if 'net_input' in sample and 'src_smiles' in sample['net_input']:
             return sample['net_input']['src_smiles']
 
-        # 방법 2: target에 포함된 경우
+        # Method 2: Included in target
         if 'target' in sample and 'smiles_target' in sample['target']:
             return sample['target']['smiles_target']
 
-        # 방법 3: 최상위에 포함된 경우
+        # Method 3: Included at top level
         if 'smiles_batch' in sample:
             return sample['smiles_batch']
 
-        # 방법 4: 캐시에서 가져오기 (인덱스 정보 필요)
+        # Method 4: Get from cache (requires index info)
         # if hasattr(self, 'smiles_cache') and 'indices' in sample:
         #     return self.smiles_cache.get_smiles_batch(sample['indices'])
         return sample['target']['smi_name']
-        # 기본값: 더미 SMILES
+        # Default: dummy SMILES
         #batch_size = sample['net_input']['src_tokens'].shape[0]
         #return ["C"] * batch_size
 
     def smiles_to_bond_matrix(self, smiles, max_atoms):
-        """SMILES → 결합 타입 행렬"""
+        """SMILES -> bond type matrix"""
         try:
             mol = Chem.MolFromSmiles(smiles)
             if mol is None:
                 return np.zeros((max_atoms, max_atoms), dtype=np.int32)
 
-            # 수소 추가 (데이터에 따라 조정 필요)
+            # Add hydrogens (adjust based on data)
             mol = Chem.AddHs(mol)
             bond_matrix = np.zeros((max_atoms, max_atoms), dtype=np.int32)
 
@@ -1969,16 +1972,16 @@ class CompleteBondExtractor:
             return np.zeros((max_atoms, max_atoms), dtype=np.int32)
 
     def extract_bond_types_from_sample(self, sample):
-        """Sample에서 결합 타입 추출 (SMILES 자동 감지)"""
+        """Extract bond types from sample (SMILES auto-detection)"""
 
-        # SMILES 데이터 추출
+        # Extract SMILES data
         smiles_batch = self.get_smiles_from_sample(sample)
 
-        # 텐서 정보
+        # Tensor info
         src_tokens = sample['net_input']['src_tokens']
         batch_size, max_atoms = src_tokens.shape
 
-        # 배치 크기 확인
+        # Check batch size
         if len(smiles_batch) != batch_size:
             print(f"Warning: SMILES batch size {len(smiles_batch)} != sample batch size {batch_size}")
             smiles_batch = smiles_batch[:batch_size] + ["C"] * max(0, batch_size - len(smiles_batch))
@@ -1988,10 +1991,10 @@ class CompleteBondExtractor:
         for batch_idx in range(batch_size):
             smiles = smiles_batch[batch_idx] if batch_idx < len(smiles_batch) else "C"
 
-            # 결합 타입 행렬 생성
+            # Generate bond type matrix
             bond_matrix = self.smiles_to_bond_matrix(smiles, max_atoms)
 
-            # 패딩 마스크 적용
+            # Apply padding mask
             tokens = src_tokens[batch_idx]
             valid_mask = (tokens != self.padding_idx)
             bond_matrix[~valid_mask.cpu().numpy(), :] = 0
@@ -1999,7 +2002,7 @@ class CompleteBondExtractor:
 
             bond_matrices.append(bond_matrix)
 
-        # 텐서 변환
+        # Convert to tensor
         bond_types = torch.tensor(np.stack(bond_matrices), dtype=torch.long)
         if src_tokens.is_cuda:
             bond_types = bond_types.to(src_tokens.device)
@@ -2009,11 +2012,11 @@ class CompleteBondExtractor:
 
 class FixedCompleteBondExtractor:
     """
-    수정된 결합 타입 추출기
+    Fixed bond type extractor
 
-    주요 수정 사항:
-    - LMDB의 atoms 순서를 기준으로 bond matrix 생성
-    - RDKit mol의 atom을 LMDB 순서에 맞춰 매핑
+    Key modifications:
+    - Generate bond matrix based on LMDB atom order
+    - Map RDKit mol atoms to LMDB order
     """
 
     def __init__(self, task=None):
@@ -2021,11 +2024,11 @@ class FixedCompleteBondExtractor:
         self.dictionary = task.dictionary if task else None
         self.padding_idx = task.dictionary.pad() if task else 0
 
-        # 기본 토큰 매핑
+        # Default token mapping
         self.token_to_symbol = self._build_token_mapping()
 
     def _build_token_mapping(self):
-        """토큰 → 원자 기호 매핑 구축"""
+        """Build token -> atom symbol mapping"""
         if self.dictionary:
             mapping = {}
             for i in range(len(self.dictionary)):
@@ -2039,7 +2042,7 @@ class FixedCompleteBondExtractor:
             return {0: 'PAD', 1: 'C', 2: 'O', 3: 'N', 4: 'S', 5: 'F', 6: 'Cl', 7: 'Br'}
 
     def get_smiles_from_sample(self, sample):
-        """Sample에서 SMILES 추출"""
+        """Extract SMILES from sample"""
         if 'net_input' in sample and 'src_smiles' in sample['net_input']:
             return sample['net_input']['src_smiles']
 
@@ -2053,29 +2056,29 @@ class FixedCompleteBondExtractor:
 
     def get_atoms_from_sample(self, sample, batch_idx):
         """
-        Sample에서 실제 atom 순서를 추출
+        Extract actual atom order from sample
 
         Args:
-            sample: 배치 샘플
-            batch_idx: 배치 내 인덱스
+            sample: Batch sample
+            batch_idx: Index within batch
 
         Returns:
             List[str]: Atom symbols in LMDB order
         """
-        # 방법 1: Sample에 atoms 정보가 직접 포함된 경우
+        # Method 1: atoms info directly included in sample
         if 'target' in sample and 'atoms' in sample['target']:
             atoms_batch = sample['target']['atoms']
             if batch_idx < len(atoms_batch):
                 return atoms_batch[batch_idx]
 
-        # 방법 2: net_input에 atoms가 있는 경우
+        # Method 2: atoms in net_input
         if 'net_input' in sample and 'atoms' in sample['net_input']:
             atoms_batch = sample['net_input']['atoms']
             if batch_idx < len(atoms_batch):
                 return atoms_batch[batch_idx]
 
-        # 방법 3: src_tokens로부터 역추적
-        # 이 경우 token → symbol 변환 필요
+        # Method 3: Trace back from src_tokens
+        # Requires token -> symbol conversion
         if 'net_input' in sample and 'src_tokens' in sample['net_input']:
             src_tokens = sample['net_input']['src_tokens']
             if batch_idx < src_tokens.shape[0]:
@@ -2094,7 +2097,7 @@ class FixedCompleteBondExtractor:
 
     def create_atom_mapping(self, rdkit_mol, lmdb_atoms):
         """
-        RDKit mol의 atom을 LMDB atoms 순서에 매핑
+        Map RDKit mol atoms to LMDB atoms order
 
         Args:
             rdkit_mol: RDKit Mol object (with H)
@@ -2106,16 +2109,16 @@ class FixedCompleteBondExtractor:
         """
         rdkit_atoms = [atom.GetSymbol() for atom in rdkit_mol.GetAtoms()]
 
-        # 원자 개수가 다르면 매핑 불가
+        # Cannot map if atom counts differ
         if len(rdkit_atoms) != len(lmdb_atoms):
             return None
 
-        # 간단한 경우: 순서가 완전히 동일
+        # Simple case: order is identical
         if rdkit_atoms == lmdb_atoms:
             return {i: i for i in range(len(lmdb_atoms))}
 
-        # 복잡한 경우: 최적 매핑 찾기
-        # 각 원소별로 개수가 일치하는지 먼저 확인
+        # Complex case: find optimal mapping
+        # First check if element counts match
         from collections import Counter
         rdkit_count = Counter(rdkit_atoms)
         lmdb_count = Counter(lmdb_atoms)
@@ -2126,13 +2129,13 @@ class FixedCompleteBondExtractor:
             print(f"    LMDB:  {lmdb_count}")
             return None
 
-        # Greedy matching: 좌표 기반으로 가장 가까운 원자 매핑
-        # 같은 원소 타입끼리만 매핑
+        # Greedy matching: map closest atoms based on coordinates
+        # Only map atoms of the same element type
         mapping = {}
         used_rdkit_indices = set()
 
         for lmdb_idx, lmdb_symbol in enumerate(lmdb_atoms):
-            # 같은 원소를 가진 RDKit 인덱스들 찾기
+            # Find RDKit indices with same element
             candidates = [
                 i for i, sym in enumerate(rdkit_atoms)
                 if sym == lmdb_symbol and i not in used_rdkit_indices
@@ -2142,7 +2145,7 @@ class FixedCompleteBondExtractor:
                 print(f"  Warning: No matching RDKit atom for LMDB atom {lmdb_idx} ({lmdb_symbol})")
                 return None
 
-            # 첫 번째 후보 선택 (향후 좌표 기반으로 개선 가능)
+            # Select first candidate (can be improved with coordinate-based selection)
             rdkit_idx = candidates[0]
             mapping[lmdb_idx] = rdkit_idx
             used_rdkit_indices.add(rdkit_idx)
@@ -2151,11 +2154,11 @@ class FixedCompleteBondExtractor:
 
     def smiles_to_bond_matrix_with_atom_order(self, smiles, lmdb_atoms, max_atoms):
         """
-        SMILES와 LMDB atom 순서를 사용하여 bond matrix 생성
+        Generate bond matrix using SMILES and LMDB atom order
 
         Args:
             smiles: SMILES string
-            lmdb_atoms: List of atom symbols from LMDB (올바른 순서)
+            lmdb_atoms: List of atom symbols from LMDB (correct order)
             max_atoms: Maximum number of atoms (for padding)
 
         Returns:
@@ -2166,39 +2169,39 @@ class FixedCompleteBondExtractor:
             if mol is None:
                 return np.zeros((max_atoms, max_atoms), dtype=np.int32)
 
-            # 수소 추가
+            # Add hydrogens
             mol = Chem.AddHs(mol)
 
-            # LMDB atom 순서에 맞춰 매핑 생성
+            # Create mapping based on LMDB atom order
             atom_mapping = self.create_atom_mapping(mol, lmdb_atoms)
 
             if atom_mapping is None:
                 print(f"  Warning: Failed to create atom mapping for SMILES: {smiles}")
                 return np.zeros((max_atoms, max_atoms), dtype=np.int32)
 
-            # Bond matrix 초기화
+            # Initialize bond matrix
             bond_matrix = np.zeros((max_atoms, max_atoms), dtype=np.int32)
 
             # Reverse mapping: rdkit_idx -> lmdb_idx
             reverse_mapping = {v: k for k, v in atom_mapping.items()}
 
-            # 각 bond에 대해 LMDB 인덱스 기준으로 bond matrix 생성
+            # Generate bond matrix based on LMDB indices for each bond
             for bond in mol.GetBonds():
                 rdkit_i = bond.GetBeginAtomIdx()
                 rdkit_j = bond.GetEndAtomIdx()
 
-                # RDKit 인덱스를 LMDB 인덱스로 변환
+                # Convert RDKit index to LMDB index
                 lmdb_i = reverse_mapping.get(rdkit_i)
                 lmdb_j = reverse_mapping.get(rdkit_j)
 
                 if lmdb_i is None or lmdb_j is None:
                     continue
 
-                # 범위 체크
+                # Range check
                 if lmdb_i + 1 >= max_atoms or lmdb_j + 1 >= max_atoms:
                     continue
 
-                # Bond type 결정
+                # Determine bond type
                 bond_type = bond.GetBondType()
                 if bond_type == Chem.rdchem.BondType.SINGLE:
                     bond_value = 1
@@ -2211,7 +2214,7 @@ class FixedCompleteBondExtractor:
                 else:
                     bond_value = 1
 
-                # Bond matrix에 추가 (1-indexed)
+                # Add to bond matrix (1-indexed)
                 bond_matrix[lmdb_i + 1, lmdb_j + 1] = bond_value
                 bond_matrix[lmdb_j + 1, lmdb_i + 1] = bond_value
 
@@ -2225,18 +2228,18 @@ class FixedCompleteBondExtractor:
 
     def extract_bond_types_from_sample(self, sample):
         """
-        Sample에서 결합 타입 추출 (LMDB atom ordering 사용)
+        Extract bond types from sample (using LMDB atom ordering)
 
-        이 메서드가 UniMolOptimalLoss2.forward()에서 호출됨
+        This method is called from UniMolOptimalLoss2.forward()
         """
-        # SMILES 데이터 추출
+        # Extract SMILES data
         smiles_batch = self.get_smiles_from_sample(sample)
 
-        # 텐서 정보
+        # Tensor info
         src_tokens = sample['net_input']['src_tokens']
         batch_size, max_atoms = src_tokens.shape
 
-        # 배치 크기 확인
+        # Check batch size
         if len(smiles_batch) != batch_size:
             print(f"Warning: SMILES batch size {len(smiles_batch)} != sample batch size {batch_size}")
             smiles_batch = smiles_batch[:batch_size] + ["C"] * max(0, batch_size - len(smiles_batch))
@@ -2246,12 +2249,12 @@ class FixedCompleteBondExtractor:
         for batch_idx in range(batch_size):
             smiles = smiles_batch[batch_idx] if batch_idx < len(smiles_batch) else "C"
 
-            # LMDB atom 순서 가져오기
+            # Get LMDB atom order
             lmdb_atoms = self.get_atoms_from_sample(sample, batch_idx)
 
             if lmdb_atoms is None:
                 print(f"  Warning: Could not extract atoms for batch {batch_idx}, using fallback")
-                # Fallback: token에서 추출
+                # Fallback: extract from tokens
                 tokens = src_tokens[batch_idx]
                 lmdb_atoms = []
                 for token_id in tokens:
@@ -2262,12 +2265,12 @@ class FixedCompleteBondExtractor:
                     if symbol != 'PAD':
                         lmdb_atoms.append(symbol)
 
-            # LMDB atom 순서를 사용하여 bond matrix 생성
+            # Generate bond matrix using LMDB atom order
             bond_matrix = self.smiles_to_bond_matrix_with_atom_order(
                 smiles, lmdb_atoms, max_atoms
             )
 
-            # 패딩 마스크 적용
+            # Apply padding mask
             tokens = src_tokens[batch_idx]
             valid_mask = (tokens != self.padding_idx)
             bond_matrix[~valid_mask.cpu().numpy(), :] = 0
@@ -2275,7 +2278,7 @@ class FixedCompleteBondExtractor:
 
             bond_matrices.append(bond_matrix)
 
-        # 텐서 변환
+        # Convert to tensor
         bond_types = torch.tensor(np.stack(bond_matrices), dtype=torch.long)
         if src_tokens.is_cuda:
             bond_types = bond_types.to(src_tokens.device)
@@ -2289,41 +2292,41 @@ from rdkit.Chem.FilterCatalog import FilterCatalog, FilterCatalogParams
 
 def compute_admet_properties(smiles: str) -> dict:
     """
-    주어진 SMILES로부터 다양한 ADMET 관련 물성을 계산합니다.
-    
-    :param smiles: 분자를 나타내는 SMILES 문자열
-    :return: 속성 이름을 키로, 계산된 값을 값으로 갖는 사전
+    Compute various ADMET-related properties from given SMILES.
+
+    :param smiles: SMILES string representing the molecule
+    :return: Dictionary with property names as keys and computed values as values
     """
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
-        raise ValueError("입력한 SMILES가 유효하지 않습니다.")
+        raise ValueError("Invalid SMILES input.")
 
     props = {
-        "ExactMolWt": Descriptors.ExactMolWt(mol),                     # 정확한 분자량
-        "MolLogP": Crippen.MolLogP(mol),                               # logP (지용성)
-        "MolMR": Crippen.MolMR(mol),                                   # 몰 굴절률
-        "NumHBD": Descriptors.NumHDonors(mol),                         # 수소결합 기증자 수
-        "NumHBA": Descriptors.NumHAcceptors(mol),                      # 수소결합 수용자 수
-        "TPSA": rdMolDescriptors.CalcTPSA(mol),                        # 위상학적 극성 표면적
-        "LabuteASA": rdMolDescriptors.CalcLabuteASA(mol),              # Labute 접근 표면적
-        "NumRotatableBonds": rdMolDescriptors.CalcNumRotatableBonds(mol),  # 회전 가능한 결합 수
-        "FractionCSP3": rdMolDescriptors.CalcFractionCSP3(mol),        # sp³ 탄소 비율
-        "NumHeavyAtoms": rdMolDescriptors.CalcNumHeavyAtoms(mol),      # 무거운 원자 수
-        "NumAromaticRings": rdMolDescriptors.CalcNumAromaticRings(mol),    # 방향족 고리 수
-        "NumAromaticHeterocycles": rdMolDescriptors.CalcNumAromaticHeterocycles(mol),  # 방향족 헤테로고리 수
-        "NumAromaticCarbocycles": rdMolDescriptors.CalcNumAromaticCarbocycles(mol),    # 방향족 카보사이클 수
-        "NumHeteroatoms": rdMolDescriptors.CalcNumHeteroatoms(mol),    # 헤테로 원자 수
-        "QED": QED.qed(mol),                                           # QED(약물 유사성) 점수
+        "ExactMolWt": Descriptors.ExactMolWt(mol),                     # Exact molecular weight
+        "MolLogP": Crippen.MolLogP(mol),                               # logP (lipophilicity)
+        "MolMR": Crippen.MolMR(mol),                                   # Molar refractivity
+        "NumHBD": Descriptors.NumHDonors(mol),                         # Number of H-bond donors
+        "NumHBA": Descriptors.NumHAcceptors(mol),                      # Number of H-bond acceptors
+        "TPSA": rdMolDescriptors.CalcTPSA(mol),                        # Topological polar surface area
+        "LabuteASA": rdMolDescriptors.CalcLabuteASA(mol),              # Labute accessible surface area
+        "NumRotatableBonds": rdMolDescriptors.CalcNumRotatableBonds(mol),  # Number of rotatable bonds
+        "FractionCSP3": rdMolDescriptors.CalcFractionCSP3(mol),        # Fraction of sp3 carbons
+        "NumHeavyAtoms": rdMolDescriptors.CalcNumHeavyAtoms(mol),      # Number of heavy atoms
+        "NumAromaticRings": rdMolDescriptors.CalcNumAromaticRings(mol),    # Number of aromatic rings
+        "NumAromaticHeterocycles": rdMolDescriptors.CalcNumAromaticHeterocycles(mol),  # Number of aromatic heterocycles
+        "NumAromaticCarbocycles": rdMolDescriptors.CalcNumAromaticCarbocycles(mol),    # Number of aromatic carbocycles
+        "NumHeteroatoms": rdMolDescriptors.CalcNumHeteroatoms(mol),    # Number of heteroatoms
+        "QED": QED.qed(mol),                                           # QED (drug-likeness) score
     }
 
-    # PAINS 필터 적용: 특정 비특이적 결합 또는 허위 양성을 유발하는 하위구조 탐지
+    # Apply PAINS filter: detect substructures causing non-specific binding or false positives
     params = FilterCatalogParams()
     params.AddCatalog(FilterCatalogParams.FilterCatalogs.PAINS_A)
     pains_catalog = FilterCatalog(params)
     if pains_catalog.HasMatch(mol)  == True:
-        props["PAINS"] = 1       
+        props["PAINS"] = 1
     else:
-        props["PAINS"] = 0       # PAINS 경고 여부 (True/False)
+        props["PAINS"] = 0       # PAINS alert flag (True/False)
     property_list = list(props.values())
     return props, property_list
 
@@ -2332,7 +2335,7 @@ def compute_admet_properties(smiles: str) -> dict:
 # target_key = "target"
 # self.padding_idx = 0
 
-# # 1) 토큰 기반 non-padding mask
+# # 1) Token-based non-padding mask
 # nonpad_mask = sample[target_key]["tokens_target"].ne(self.padding_idx)
 
 # pair_padding_mask = sample[input_key]['src_distance'].ne(self.padding_idx)
@@ -2343,7 +2346,7 @@ def compute_admet_properties(smiles: str) -> dict:
 # sample[input_key]['src_tokens'][sample[input_key]['src_tokens'] == 1] = 0
 # sample[input_key]['src_tokens'][sample[input_key]['src_tokens'] == 2] = 0
 
-# # src_tokens 기준으로 다시 non-padding mask 구성
+# # Build non-padding mask based on src_tokens
 # nonpad_mask = sample[input_key]['src_tokens'].ne(self.padding_idx)  # True: atom, False: padding
 # sample_size = nonpad_mask.long().sum()
 
@@ -2384,7 +2387,7 @@ def compute_admet_properties(smiles: str) -> dict:
 # mol_list = save_batch_to_sdf_reconstruct(final_type, final_atom_num, final_coords, iteration)
 
 
-# # 모델이 생성한 좌표/타입으로 SDF 저장
+# # Save SDF with model-generated coordinates/types
 # #final_coords = sample[input_key]['src_coord']
 # final_coords = coord_target[~padding_mask]
 # final_type = [vocab_dict[i] for i in sample[input_key]['src_tokens'][~padding_mask].tolist()]

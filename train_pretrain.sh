@@ -1,4 +1,5 @@
-data_path=/home/csy/work1/3D/Uni-Mol/unimol/example_data/ligands
+# Configure paths before running
+data_path=/path/to/your/pretraining/data  # Replace with your data path
 #save_dir=./saveOptimalDual # replace to your save path saveOptimalDualConsis
 save_dir=./saveOptimalDualConsis # replace to your save path saveOptimalDualConsis
 arch=unimol_Optimal_padding_Dual

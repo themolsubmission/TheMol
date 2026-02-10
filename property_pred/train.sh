@@ -7,17 +7,17 @@
 # - Auto-balances small and large datasets to avoid OOM
 # ==============================================================================
 
-# Activate conda environment
-source /home/csy/anaconda3/etc/profile.d/conda.sh
-conda activate lf_cfm_cma
+# Activate conda environment (modify for your setup)
+# source /path/to/anaconda3/etc/profile.d/conda.sh
+# conda activate your_env
 
-cd /home/csy/work1/3D/TheMol
+# Change to project directory
+cd "$(dirname "$0")/.."
 
-# Common configuration
-data_path="/home/csy/work1/3D/TheMol/molecular_property_prediction"
+# Common configuration - MODIFY THESE PATHS
+data_path="./datasets/moleculenet"  # Path to MoleculeNet dataset
 dict_name="dict.txt"
-#weight_path="/home/csy/work1/3D/TheMol/saveOptimal2_Flow/checkpoint_last.pt"
-weight_path="/home/csy/work1/3D/TheMol/saveOptimalDual_retrain/checkpoint_last.pt"
+weight_path="./checkpoints/checkpoint_last.pt"  # Path to pretrained checkpoint
 n_gpu=1
 arch=unimol_Optimal_padding_Dual
 epoch=200
@@ -76,12 +76,12 @@ is_experiment_completed() {
     local checkpoint_file="${save_dir}/checkpoint_best.pt"
     local logfile="${save_dir}/${arch}.log"
 
-    # 완료 판정: 1) checkpoint_best.pt 존재 AND 2) 로그에 "done training in" 존재
+    # Completion check: 1) checkpoint_best.pt exists AND 2) log contains "done training in"
     if [ -f "$checkpoint_file" ] && [ -f "$logfile" ] && grep -q "done training in" "$logfile"; then
         return 0  # Completed
     fi
 
-    return 1  # Not completed -> 재학습 대상
+    return 1  # Not completed -> will be retrained
 }
 
 

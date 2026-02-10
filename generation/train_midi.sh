@@ -1,5 +1,5 @@
-#data_path=/home/csy/work1/3D/Uni-Mol/unimol/example_data/ligands
-data_path=/home/csy/work1/3D/TheMol/geom_midi_canonical_lmdb
+# Configure paths before running
+data_path=/path/to/your/midi_dataset  # Replace with your MIDI dataset path
 save_dir=./saveMIDI_Dual # replace to your save path
 arch=unimol_Optimal_padding_Dual
 logfile=${save_dir}/${arch}.log

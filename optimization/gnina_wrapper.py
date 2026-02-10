@@ -3,7 +3,7 @@ import os
 import sys
 
 class GninaDocker:
-    def __init__(self, gnina_path="/home/csy/anaconda3/envs/gninatorch/bin/gnina", device=3):
+    def __init__(self, gnina_path="gnina", device=3):  # Configure gnina path
         """
         Args:
             gnina_path (str): Absolute path to the gnina executable.

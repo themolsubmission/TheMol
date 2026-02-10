@@ -27,7 +27,7 @@ class Add2DConformerDataset(BaseWrapperDataset):
         assert len(atoms) > 0
         
         if self.max_atoms_filter is not None and len(atoms) > self.max_atoms_filter:
-            # 다음 유효한 샘플 찾기
+            # Find next valid sample
             for offset in range(1, min(100, len(self.dataset))):
                 next_index = (index + offset) % len(self.dataset)
                 next_atoms = np.array(self.dataset[next_index][self.atoms])
@@ -39,7 +39,7 @@ class Add2DConformerDataset(BaseWrapperDataset):
         smi = self.dataset[index][self.smi]
         coordinates_2d = smi2_2Dcoords(smi)
         coordinates = self.dataset[index][self.coordinates]
-        # numpy.ndarray인 경우 list로 변환 (reordered lmdb 호환)
+        # Convert to list if numpy.ndarray (for reordered lmdb compatibility)
         if isinstance(coordinates, np.ndarray):
             coordinates = [coordinates]
         coordinates.append(coordinates_2d)

@@ -17,16 +17,15 @@ from rdkit import Chem
 from rdkit.Chem import AllChem
 
 # Import original reconstruction function
-sys.path.insert(0, '/home/csy/anaconda3/envs/lf_cfm_cma/lib/python3.9/site-packages')
 from unicore.tasks.unicore_task import save_batch_to_sdf_reconstruct
 
 
 class MoleculeSampler:
     """
-    분자 생성을 위한 샘플러 클래스
+    Sampler class for molecular generation
 
-    Flow-based 모델을 사용하여 분자를 샘플링하고 SDF 파일로 저장합니다.
-    원본 unicore_task.py의 save_batch_to_sdf_reconstruct 함수를 사용합니다.
+    Samples molecules using Flow-based model and saves to SDF files.
+    Uses save_batch_to_sdf_reconstruct function from original unicore_task.py.
     """
 
     def __init__(
@@ -37,9 +36,9 @@ class MoleculeSampler:
     ):
         """
         Args:
-            vocab_dict: 원자 타입 매핑 딕셔너리 (int -> atom_symbol)
-            output_dir: 생성된 분자를 저장할 디렉토리
-            device: 연산 디바이스 ('cuda' or 'cpu')
+            vocab_dict: Atom type mapping dictionary (int -> atom_symbol)
+            output_dir: Directory to save generated molecules
+            device: Computation device ('cuda' or 'cpu')
         """
         self.vocab_dict = vocab_dict or self._create_default_vocab_dict()
         self.output_dir = output_dir
@@ -47,8 +46,8 @@ class MoleculeSampler:
         os.makedirs(output_dir, exist_ok=True)
 
     def _create_default_vocab_dict(self) -> Dict[int, str]:
-        """기본 vocab dictionary 생성"""
-        # 일반적인 원자 타입들
+        """Create default vocab dictionary"""
+        # Common atom types
         vocab = {
             0: 'PAD',   # padding
             1: 'MASK',  # mask token
@@ -88,26 +87,26 @@ class MoleculeSampler:
         optimize: bool = False,
     ) -> Tuple[List, Dict[str, float]]:
         """
-        Flow 모델을 사용하여 분자 샘플링
+        Sample molecules using Flow model
 
         Args:
-            model: 학습된 모델
-            batch_size: 샘플링할 분자 개수
-            num_tokens: 최대 토큰(원자) 개수
-            emb_dim: Embedding 차원
-            min_atoms: 최소 원자 개수
-            max_atoms: 최대 원자 개수
-            use_dopri5: DOPRI5 ODE solver 사용 여부 (True: 정확, False: 빠름)
-            temperature: 샘플링 온도 (높을수록 다양성 증가)
+            model: Trained model
+            batch_size: Number of molecules to sample
+            num_tokens: Maximum token (atom) count
+            emb_dim: Embedding dimension
+            min_atoms: Minimum atom count
+            max_atoms: Maximum atom count
+            use_dopri5: Whether to use DOPRI5 ODE solver (True: accurate, False: fast)
+            temperature: Sampling temperature (higher increases diversity)
 
         Returns:
-            mol_list: 생성된 RDKit 분자 리스트 [(mol, filepath), ...]
-            stats: 생성 통계
+            mol_list: List of generated RDKit molecules [(mol, filepath), ...]
+            stats: Generation statistics
         """
         model.eval()
 
         with torch.no_grad():
-            # 1. 랜덤하게 원자 개수 샘플링
+            # 1. Randomly sample atom count
             # num_atom = torch.randint(
             #     min_atoms,
             #     max_atoms + 1,
@@ -115,15 +114,15 @@ class MoleculeSampler:
             #     device=self.device
             # )
 
-            # 2. Padding mask 생성
+            # 2. Generate padding mask
             indices = torch.arange(num_tokens, device=self.device)
             num_atom_col = num_atom.unsqueeze(1)
             padding_mask = indices >= num_atom_col
-            padding_mask[:, 0] = True  # 첫 번째 토큰은 항상 패딩 (CLS token)
+            padding_mask[:, 0] = True  # First token is always padding (CLS token)
             # use_dopri5 = False
-            # # 3. Flow matching을 통한 latent 샘플링
+            # # 3. Latent sampling via flow matching
             # if use_dopri5:
-            #     # DOPRI5: 더 정확하지만 느림
+            #     # DOPRI5: More accurate but slower
             #     sampling_dict = model.interpolant.sample_with_dopri5(
             #         batch_size,
             #         num_tokens,
@@ -132,7 +131,7 @@ class MoleculeSampler:
             #         token_mask=~padding_mask
             #     )
             # else:
-            #     # Euler method: 빠르지만 덜 정확
+            #     # Euler method: Fast but less accurate
             #     sampling_dict = model.interpolant.sample(
             #         batch_size,
             #         num_tokens,
@@ -150,16 +149,16 @@ class MoleculeSampler:
                     token_mask=~padding_mask
                 )
 
-                # 4. 마지막 타임스텝의 latent 추출
+                # 4. Extract latent from last timestep
                 ode_latent = sampling_dict['tokens_traj'][-1]
 
             else:
                 ode_latent = latent
             #print(ode_latent.device)
-            # 5. Decoder를 통해 분자 생성
+            # 5. Generate molecule through decoder
             decoder_output = model.dec(ode_latent, padding_mask)
 
-            # Decoder output unpacking (모델 버전에 따라 다를 수 있음)
+            # Decoder output unpacking (may vary by model version)
             if len(decoder_output) >= 8:
                 (
                     logits,
@@ -172,35 +171,35 @@ class MoleculeSampler:
                     _
                 ) = decoder_output
             else:
-                # 간단한 버전
+                # Simple version
                 logits = decoder_output[0]
                 encoder_coord_ = decoder_output[2]
 
-            # 6. Coordinate 처리
+            # 6. Coordinate processing
             if isinstance(encoder_coord_, tuple) and len(encoder_coord_) == 2:
                 encoder_coord, pred_bond = encoder_coord_
             else:
                 encoder_coord = encoder_coord_
                 pred_bond = None
 
-            # 7. Non-padding 위치의 데이터만 추출
+            # 7. Extract only non-padding positions
             logits_flat = logits[~padding_mask]
             final_coords = encoder_coord[~padding_mask]
 
-            # 8. 원자 타입 예측 (temperature scaling)
+            # 8. Atom type prediction (temperature scaling)
             if temperature != 1.0:
                 logits_flat = logits_flat / temperature
             final_type = [self.vocab_dict[i] for i in logits_flat.argmax(1).tolist()]
-            final_atom_num = num_atom_col - 1  # CLS token 제외
+            final_atom_num = num_atom_col - 1  # Exclude CLS token
 
-        # 9. 분자 reconstruction 및 저장 (원본 방식 사용)
+        # 9. Molecule reconstruction and saving (using original method)
         if hasattr(model, 'get_num_updates'):
             num_updates = model.get_num_updates()
             iteration = (num_updates + 1) if num_updates is not None else 0
         else:
             iteration = 0
 
-        # 원본 save_batch_to_sdf_reconstruct 함수 사용
+        # Use original save_batch_to_sdf_reconstruct function
         try:
             mol_list = save_batch_to_sdf_reconstruct(
                 final_type,
@@ -210,7 +209,7 @@ class MoleculeSampler:
                 output_dir=self.output_dir
             )
 
-            # 통계 계산
+            # Calculate statistics
             batch_size = final_atom_num.shape[0]
             success_count = len([m for m in mol_list if m[0] is not None])
 
@@ -256,19 +255,19 @@ def sample_molecules_from_model(
     use_dopri5: bool = True
 ) -> List:
     """
-    모델로부터 분자 샘플링 (간단한 함수형 인터페이스)
+    Sample molecules from model (simple functional interface)
 
     Args:
-        model: 학습된 모델
-        sample: 입력 샘플 (device 정보를 위해 필요)
-        vocab_dict: 원자 타입 딕셔너리
-        output_dir: 출력 디렉토리
-        batch_size: 샘플링할 분자 개수
-        num_tokens: 최대 토큰 개수
-        use_dopri5: DOPRI5 solver 사용 여부
+        model: Trained model
+        sample: Input sample (needed for device info)
+        vocab_dict: Atom type dictionary
+        output_dir: Output directory
+        batch_size: Number of molecules to sample
+        num_tokens: Maximum token count
+        use_dopri5: Whether to use DOPRI5 solver
 
     Returns:
-        mol_list: 생성된 분자 리스트
+        mol_list: List of generated molecules
     """
     device = sample['net_input']['src_tokens'].device
 

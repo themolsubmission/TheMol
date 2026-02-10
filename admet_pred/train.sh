@@ -8,16 +8,17 @@
 # - Auto-balances small and large datasets to avoid OOM
 # ==============================================================================
 
-# Activate conda environment
-source /home/csy/anaconda3/etc/profile.d/conda.sh
-conda activate lf_cfm
+# Activate conda environment (modify for your setup)
+# source /path/to/anaconda3/etc/profile.d/conda.sh
+# conda activate your_env
 
-cd /home/csy/work1/3D/TheMol
+# Change to project directory
+cd "$(dirname "$0")/.."
 
-# Common configuration
-data_path="/home/csy/work1/3D/TheMol/molecular_property_prediction/admet_group"
+# Common configuration - MODIFY THESE PATHS
+data_path="./datasets/admet"  # Path to ADMET dataset
 dict_name="dict.txt"
-weight_path="/home/csy/work1/3D/TheMol/saveOptimal2_Flow/checkpoint_last.pt"
+weight_path="./checkpoints/checkpoint_last.pt"  # Path to pretrained checkpoint
 n_gpu=1
 arch=unimol_Optimal_padding2
 epoch=200
@@ -108,7 +109,7 @@ run_experiment() {
     local warmup=${10}
     local exp_id=${11}
 
-    # Changed: Save to /home/csy/work1/3D/TheMol/save_tdc/save_*
+    # Save to ./save_tdc/save_*
     local base_save_dir="./save_tdc/save_${task_name}"
     local save_dir="${base_save_dir}/lr${lr}_bs${batch_size}_drop${dropout}_warm${warmup}"
     local logfile="${save_dir}/${arch}.log"

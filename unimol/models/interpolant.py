@@ -249,14 +249,14 @@ class FlowMatchingInterpolant:
         num_tokens,
         emb_dim,
         model,
-        # self_condition 관련 인자는 odeint 구조상 직접 적용이 복잡해 제외합니다.
+        # self_condition args are excluded due to complexity with odeint structure.
         num_timesteps=None,
         token_mask=None,
     ):
         """
-        Dopri5 ODE 솔버를 사용하여 샘플을 생성합니다.
+        Generate samples using Dopri5 ODE solver.
         """
-        # --- 초기 설정 ---
+        # --- Initial setup ---
         self.device = next(model.parameters()).device
         x_0 = self._centered_gaussian(batch_size, num_tokens, emb_dim)
         if token_mask is None:
@@ -266,32 +266,32 @@ class FlowMatchingInterpolant:
             num_timesteps = self.num_timesteps
         ts = torch.linspace(self.min_t, 1.0, num_timesteps, device=self.device)
 
-        # --- 2. ODE Dynamics 함수 정의 (sample 메서드 내부에 위치) ---
-        # 이 클래스가 기존 for 루프의 핵심 로직을 대체합니다.
+        # --- 2. Define ODE Dynamics function (located inside sample method) ---
+        # This class replaces the core logic of the original for loop.
         class ODEFunct(torch.nn.Module):
             def __init__(self, model, token_mask):
                 super().__init__()
                 self.model = model
                 self.token_mask = token_mask
-                # self_condition은 상태를 스텝 간에 전달해야 하므로
-                # 단순 odeint 구조에서는 구현이 복잡합니다.
-                # 따라서 이 예제에서는 x_sc를 None으로 고정합니다.
+                # self_condition needs to pass state between steps,
+                # which is complex in simple odeint structure.
+                # Thus, x_sc is fixed to None in this example.
 
             def forward(self, t, x_t):
-                # odeint는 t를 스칼라로 다루므로, 모델 입력에 맞게 텐서로 변환
+                # odeint treats t as scalar, convert to tensor for model input
                 t_input = torch.ones(x_t.shape[0], 1, device=x_t.device) * t
-                
-                # 모델을 호출해 원본 x_1을 예측
+
+                # Call model to predict original x_1
                 with torch.no_grad():
                     pred_x_1 = self.model(x_t, t_input, token_mask, x_sc=None)
 
-                # Flow Matching 벡터 필드(속도) 계산: v = (x_1 - x_t) / (1 - t)
-                velocity = (pred_x_1 - x_t) / (1. - t + 1e-5) # 분모가 0이 되는 것 방지
+                # Compute Flow Matching vector field (velocity): v = (x_1 - x_t) / (1 - t)
+                velocity = (pred_x_1 - x_t) / (1. - t + 1e-5)  # Prevent division by zero
                 return velocity
 
         ode_func = ODEFunct(model, token_mask)
 
-        # --- 3. ODE 솔버 호출 (기존 for 루프를 이 한 줄로 대체) ---
+        # --- 3. Call ODE solver (replaces original for loop with this single line) ---
         tokens_traj_tensor = odeint(
             ode_func,
             x_0,
@@ -301,10 +301,10 @@ class FlowMatchingInterpolant:
             rtol=1e-5
         )
 
-        # --- 결과 처리 ---
+        # --- Process results ---
         tokens_traj = [x for x in tokens_traj_tensor]
-        
-        # clean_traj는 생성된 궤적을 바탕으로 다시 계산
+
+        # Recompute clean_traj based on generated trajectory
         clean_traj = []
         with torch.no_grad():
             for i, t in enumerate(ts):

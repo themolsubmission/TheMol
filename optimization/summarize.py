@@ -1,6 +1,6 @@
 """
 Summarize Docking Scores from Multi-Target Generation
-모든 타겟의 도킹 스코어를 수집하고 CSV로 정리
+Collects docking scores from all targets and organizes into CSV
 """
 
 import os
@@ -12,13 +12,13 @@ import torch
 
 def parse_docking_output(output_pdbqt):
     """
-    Uni-Dock 출력 PDBQT 파일에서 도킹 스코어 추출
+    Extract docking score from Uni-Dock output PDBQT file
 
     Args:
-        output_pdbqt: Uni-Dock 출력 PDBQT 파일 경로
+        output_pdbqt: Path to Uni-Dock output PDBQT file
 
     Returns:
-        도킹 스코어 (float) 또는 None
+        Docking score (float) or None
     """
     try:
         # Read file directly to parse Uni-Dock RESULT section
@@ -51,16 +51,16 @@ def parse_docking_output(output_pdbqt):
 
 def collect_target_scores(target_dir, target_name):
     """
-    단일 타겟 디렉토리에서 모든 리간드의 도킹 스코어 수집
+    Collect docking scores for all ligands from a single target directory
 
-    final_optimized 서브디렉토리에서 최종 최적화된 결과를 읽음
+    Reads final optimized results from the final_optimized subdirectory
 
     Args:
-        target_dir: 타겟 결과 디렉토리 경로
-        target_name: 타겟 이름
+        target_dir: Path to target results directory
+        target_name: Name of the target
 
     Returns:
-        리스트 of (target_name, ligand_name, docking_score) 튜플
+        List of (target_name, ligand_name, docking_score) tuples
     """
     results = []
 
@@ -90,10 +90,10 @@ def collect_target_scores(target_dir, target_name):
 
 def load_reference_scores(ref_pt_path):
     """
-    Reference docking score 파일에서 포켓별 점수 로드
+    Load pocket-wise scores from reference docking score file
 
     Args:
-        ref_pt_path: crossdocked_test_vina_docked_pose_checked.pt 파일 경로
+        ref_pt_path: Path to crossdocked_test_vina_docked_pose_checked.pt file
 
     Returns:
         dict: {pocket_name: reference_score}
@@ -108,10 +108,10 @@ def load_reference_scores(ref_pt_path):
 
         for item in data:
             ligand_filename = item.get('ligand_filename', '')
-            # 포켓 이름 추출 (첫 번째 '/' 앞부분)
+            # Extract pocket name (part before first '/')
             pocket_name = ligand_filename.split('/')[0] if '/' in ligand_filename else ''
 
-            # vina dock affinity 추출
+            # Extract vina dock affinity
             vina_data = item.get('vina', {})
             dock_data = vina_data.get('dock', [])
             if dock_data and len(dock_data) > 0:
@@ -121,7 +121,7 @@ def load_reference_scores(ref_pt_path):
                         pocket_ref_scores[pocket_name] = []
                     pocket_ref_scores[pocket_name].append(float(affinity))
 
-        # 포켓별 평균 계산
+        # Calculate mean per pocket
         pocket_mean_scores = {}
         for pocket, scores in pocket_ref_scores.items():
             pocket_mean_scores[pocket] = np.mean(scores)
@@ -136,7 +136,7 @@ def load_reference_scores(ref_pt_path):
 
 def main():
     """
-    Main function: 각 포켓별 평균 docking energy 계산 및 전체 통계
+    Main function: Calculate mean docking energy per pocket and overall statistics
     """
     print("="*70)
     print("  Pocket-wise Mean Docking Energy Analysis")
@@ -145,7 +145,7 @@ def main():
     # Settings
     results_base_dir = "./multi_target_results"
     output_csv = "./pocket_mean_docking_energies.csv"
-    ref_pt_path = "/home/csy/work1/3D/MC/sample/crossdocked_test_vina_docked_pose_checked.pt"
+    ref_pt_path = "./data/crossdocked_test_vina_docked_pose_checked.pt"  # Path to reference scores file
 
     if not os.path.exists(results_base_dir):
         print(f"✗ Results directory not found: {results_base_dir}")
@@ -205,7 +205,7 @@ def main():
             }
             pocket_means.append(pocket_data)
 
-            # 출력에 reference score 포함
+            # Include reference score in output
             if ref_score is not None:
                 diff = mean_energy - ref_score
                 diff_str = f"+{diff:.2f}" if diff > 0 else f"{diff:.2f}"
@@ -261,14 +261,14 @@ def main():
     print(f"  Mean: {overall_avg_energy:.3f} ± {overall_std_energy:.3f} kcal/mol")
     print(f"  (calculated from {len(all_energies)} ligands across all pockets)")
 
-    # Reference score 비교 통계
+    # Reference score comparison statistics
     ref_df = df.dropna(subset=['Reference_Energy'])
     if len(ref_df) > 0:
         ref_mean_values = ref_df['Reference_Energy'].values
         overall_ref_mean = np.mean(ref_mean_values)
         overall_ref_std = np.std(ref_mean_values)
 
-        # 차이 계산
+        # Calculate difference
         diff_values = ref_df['Mean_Docking_Energy'].values - ref_df['Reference_Energy'].values
         mean_diff = np.mean(diff_values)
         std_diff = np.std(diff_values)

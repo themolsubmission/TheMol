@@ -45,7 +45,7 @@ echo ""
 
 # Directories
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-UNIDOCK_DIR="/home/csy/work1/gnina-torch"
+UNIDOCK_DIR="${UNIDOCK_DIR:-./gnina-torch}"  # Path to Uni-Dock installation
 LOG_DIR="${SCRIPT_DIR}/logs"
 
 mkdir -p "${LOG_DIR}"
@@ -86,7 +86,7 @@ else
 
     cd "${UNIDOCK_DIR}"
 
-    source /home/csy/anaconda3/bin/activate unidock_env
+    source ~/anaconda3/bin/activate unidock_env
     nohup python -u unidock_zmq_server.py > "${UNIDOCK_LOG}" 2>&1 &
     UNIDOCK_PID=$!
 
@@ -119,7 +119,7 @@ echo -e "${YELLOW}Activating lf_cfm_cma conda environment...${NC}"
 
 cd "${SCRIPT_DIR}"
 
-source /home/csy/anaconda3/bin/activate lf_cfm_cma
+source ~/anaconda3/bin/activate lf_cfm_cma
 
 echo -e "${GREEN}Starting dual optimization...${NC}"
 echo -e "${YELLOW}  Log file: ${GENERATION_LOG}${NC}"

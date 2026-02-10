@@ -42,9 +42,9 @@ class LMDBDataset:
     def __getitem__(self, idx):
         if not hasattr(self, "env"):
             self.connect_db(self.db_path, save_to_self=True)
-        # 기존 코드: 키가 연속적인 숫자(0,1,2,...)여야만 동작
+        # Original code: only works when keys are consecutive numbers (0,1,2,...)
         # datapoint_pickled = self.env.begin().get(f"{idx}".encode("ascii"))
-        # 수정 코드: 실제 저장된 키 목록을 사용하여 불연속적인 키도 지원
+        # Modified code: use actual stored key list to support non-consecutive keys
         datapoint_pickled = self.env.begin().get(self._keys[idx])
         data = pickle.loads(datapoint_pickled)
         return data
