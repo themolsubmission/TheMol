@@ -46,7 +46,8 @@ By canonicalizing molecules into a learned standard pose before encoding, a sing
 ## 🔥 News
 
 - **[2026.xx]** Code released for ICML 2026 submission
-- **[2026.xx]** Pretrained checkpoints available on Google Drive
+- **[2026.xx]** Preprocessed dataset available on Google Drive
+- **[2026.xx]** Pretrained checkpoints available on Github Releases
 
 ---
 
@@ -398,10 +399,10 @@ python extract_latent.py \
 # Output pickle contains:
 {
     'smiles': str,                    # SMILES string
-    'latent_mean': np.array,          # Aggregated latent mean [8]
-    'latent_z': np.array,             # Sampled latent vector [8]
-    'latent_mean_full': np.array,     # Per-atom latent means [N, 8]
-    'latent_std_full': np.array,      # Per-atom latent stds [N, 8]
+    'latent_mean': np.array,          # Aggregated latent mean [dim]
+    'latent_z': np.array,             # Sampled latent vector [dim]
+    'latent_mean_full': np.array,     # Per-atom latent means [N, dim]
+    'latent_std_full': np.array,      # Per-atom latent stds [N, dim]
     'num_atoms': int,                 # Number of atoms
 }
 ```
@@ -453,7 +454,7 @@ We thank the authors of the following projects for their excellent work:
 - [Uni-Mol](https://github.com/deepmodeling/Uni-Mol)
 - [FlowMol](https://github.com/Dunni3/FlowMol)
 - [GeoLDM](https://github.com/MinkaiXu/GeoLDM)
-- [MiDi](https://github.com/cvignac/MiDi)
+- [TargetDiff](https://github.com/guanjq/targetdiff)
 
 ---
 
