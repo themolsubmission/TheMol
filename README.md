@@ -198,6 +198,11 @@ bash train_pretrain_flow.sh
 
 Generate 3D molecules and evaluate with comprehensive metrics.
 
+| Resource | Link |
+|----------|------|
+| Pretrained Checkpoint | [Google Drive](https://drive.google.com/drive/folders/YOUR_GENERATION_CKPT_LINK) |
+| GEOM Dataset | [Google Drive](https://drive.google.com/drive/folders/YOUR_GEOM_LINK) |
+
 ```bash
 cd generation
 
@@ -234,6 +239,11 @@ python evaluate.py \
 ### Task 2: Property Prediction (MoleculeNet)
 
 Fine-tune TheMol on MoleculeNet benchmarks.
+
+| Resource | Link |
+|----------|------|
+| Pretrained Checkpoint | [Google Drive](https://drive.google.com/drive/folders/YOUR_MOLNET_CKPT_LINK) |
+| MoleculeNet Dataset | [Google Drive](https://drive.google.com/drive/folders/YOUR_MOLNET_DATA_LINK) |
 
 ```bash
 cd property_pred
@@ -275,6 +285,11 @@ warmup_ratios=(0.0 0.06 0.1)
 
 Fine-tune TheMol on TDC ADMET benchmarks.
 
+| Resource | Link |
+|----------|------|
+| Pretrained Checkpoint | [Google Drive](https://drive.google.com/drive/folders/YOUR_ADMET_CKPT_LINK) |
+| ADMET Dataset | [Google Drive](https://drive.google.com/drive/folders/YOUR_ADMET_DATA_LINK) |
+
 ```bash
 cd admet_pred
 
@@ -300,6 +315,11 @@ bash summarize.sh
 ### Task 4: Target-aware Molecule Optimization
 
 Generate molecules optimized for specific protein targets using CMA-ES.
+
+| Resource | Link |
+|----------|------|
+| Pretrained Checkpoint | [Google Drive](https://drive.google.com/drive/folders/YOUR_OPTIMIZATION_CKPT_LINK) |
+| CrossDocked Dataset | [Google Drive](https://drive.google.com/drive/folders/YOUR_DOCKING_DATA_LINK) |
 
 ```bash
 cd optimization
