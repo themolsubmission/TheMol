@@ -29,9 +29,9 @@
 
 By canonicalizing molecules into a learned standard pose before encoding, a single non-equivariant model can support both invariant and equivariant tasks. We theoretically demonstrate that this approach overcomes the fundamental constraints of prior paradigms. Pretrained on large-scale molecular data, our model consistently rivals methods purpose-built for each task.
 
-<p align="center">
-  <img src="assets/framework.png" width="800" alt="TheMol Framework"/>
-</p>
+
+<img src="assets/themol.png" width = 40% alt="TheMol"/>
+
 
 ### Key Features
 
