@@ -142,9 +142,9 @@ pip install posebusters
 |----------|-------------|------|
 | **Pretrained Model** | TheMol checkpoint | [Download Link](https://github.com/themolsubmission/TheMol/releases/download/v1.0.0-Pretrained-checkpoint/checkpoint_last.pt) |
 | **GEOM Dataset** | Pretraining data (LMDB) | [Google Drive](https://drive.google.com/file/d/1EVRqx2xLUFf40zuTa0HgCKUKznWs9mGL/view?usp=sharing) |
-| **MoleculeNet** | Property prediction data | [Google Drive](https://drive.google.com/drive/folders/YOUR_MOLNET_LINK) |
-| **ADMET** | TDC ADMET benchmark data | [Google Drive](https://drive.google.com/drive/folders/YOUR_ADMET_LINK) |
-| **CrossDocked** | Docking benchmark data | [Google Drive](https://drive.google.com/drive/folders/YOUR_DOCKING_LINK) |
+| **MoleculeNet** | Property prediction data | [Google Drive](https://drive.google.com/file/d/1hqGEgZCqOr3XaS4MNTT9ZMgoBZtBV_IR/view?usp=sharing) |
+| **ADMET** | TDC ADMET benchmark data | [Google Drive](https://drive.google.com/file/d/1I4Ydnay2fYHtHszdZ3gjFM6qnh2DmAJK/view?usp=sharing) |
+| **CrossDocked** | Docking benchmark data | [Google Drive](https://drive.google.com/file/d/1_QP2cG8pZmj4Rae7gk2_F0VEDAHm1YRu/view?usp=sharing) |
 
 ### Data Preparation
 
@@ -201,8 +201,8 @@ Generate 3D molecules and evaluate with comprehensive metrics.
 
 | Resource | Link |
 |----------|------|
-| Pretrained Checkpoint | [Google Drive](https://drive.google.com/drive/folders/YOUR_GENERATION_CKPT_LINK) |
-| GEOM Dataset | [Google Drive](https://drive.google.com/drive/folders/YOUR_GEOM_LINK) |
+| Pretrained Checkpoint | [Download Link](https://github.com/themolsubmission/TheMol/releases/download/v1.0.0-geom-weights/GEOM_checkpoint.pt) |
+| GEOM Dataset | [Google Drive](https://drive.google.com/file/d/1EVRqx2xLUFf40zuTa0HgCKUKznWs9mGL/view?usp=sharing) |
 
 ```bash
 cd generation
@@ -243,8 +243,8 @@ Fine-tune TheMol on MoleculeNet benchmarks.
 
 | Resource | Link |
 |----------|------|
-| Pretrained Checkpoint | [Google Drive](https://drive.google.com/drive/folders/YOUR_MOLNET_CKPT_LINK) |
-| MoleculeNet Dataset | [Google Drive](https://drive.google.com/drive/folders/YOUR_MOLNET_DATA_LINK) |
+| Pretrained Checkpoint | [Download Link](https://github.com/themolsubmission/TheMol/releases/tag/v1.0.0-MoleculeNet-weight) |
+| MoleculeNet Dataset | [Google Drive](https://drive.google.com/file/d/1hqGEgZCqOr3XaS4MNTT9ZMgoBZtBV_IR/view?usp=sharing) |
 
 ```bash
 cd property_pred
@@ -288,8 +288,8 @@ Fine-tune TheMol on TDC ADMET benchmarks.
 
 | Resource | Link |
 |----------|------|
-| Pretrained Checkpoint | [Google Drive](https://drive.google.com/drive/folders/YOUR_ADMET_CKPT_LINK) |
-| ADMET Dataset | [Google Drive](https://drive.google.com/drive/folders/YOUR_ADMET_DATA_LINK) |
+| Pretrained Checkpoint | [Download Link](https://github.com/themolsubmission/TheMol/releases/tag/checkpoint) |
+| ADMET Dataset | [Google Drive](https://drive.google.com/file/d/1I4Ydnay2fYHtHszdZ3gjFM6qnh2DmAJK/view?usp=sharing) |
 
 ```bash
 cd admet_pred
@@ -319,8 +319,8 @@ Generate molecules optimized for specific protein targets using CMA-ES.
 
 | Resource | Link |
 |----------|------|
-| Pretrained Checkpoint | [Google Drive](https://drive.google.com/drive/folders/YOUR_OPTIMIZATION_CKPT_LINK) |
-| CrossDocked Dataset | [Google Drive](https://drive.google.com/drive/folders/YOUR_DOCKING_DATA_LINK) |
+| Pretrained Checkpoint | [Download Link](https://github.com/themolsubmission/TheMol/releases/download/v1.0.0-geom-weights/GEOM_checkpoint.pt) |
+| CrossDocked Dataset | [Google Drive](https://drive.google.com/file/d/1_QP2cG8pZmj4Rae7gk2_F0VEDAHm1YRu/view?usp=sharing) |
 
 ```bash
 cd optimization
@@ -362,7 +362,7 @@ Extract molecular latent representations from pretrained TheMol model.
 
 | Resource | Link |
 |----------|------|
-| Pretrained Checkpoint | [Google Drive](https://drive.google.com/drive/folders/YOUR_MODEL_LINK) |
+| Pretrained Checkpoint | [Download Link](https://github.com/themolsubmission/TheMol/releases/download/v1.0.0-Pretrained-checkpoint/checkpoint_last.pt) |
 
 ```bash
 # Extract latent from SDF file
