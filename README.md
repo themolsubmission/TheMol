@@ -23,6 +23,7 @@
 
 ## 📋 Overview
 
+<img src="assets/themol.png" width = 40% alt="TheMol"/>
 3D molecular foundation models must handle diverse tasks (from predicting scalar properties to generating 3D coordinates) yet existing approaches force a choice between invariant and equivariant architectures, each with inherent limitations.
 
 **We show that this tradeoff is unnecessary.**
@@ -30,7 +31,7 @@
 By canonicalizing molecules into a learned standard pose before encoding, a single non-equivariant model can support both invariant and equivariant tasks. We theoretically demonstrate that this approach overcomes the fundamental constraints of prior paradigms. Pretrained on large-scale molecular data, our model consistently rivals methods purpose-built for each task.
 
 
-<img src="assets/themol.png" width = 40% alt="TheMol"/>
+
 
 
 ### Key Features
