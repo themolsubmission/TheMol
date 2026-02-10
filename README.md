@@ -22,11 +22,11 @@
 
 ## 📋 Overview
 
-**TheMol** is a unified framework for 3D molecular generation that combines:
+3D molecular foundation models must handle diverse tasks—from predicting scalar properties to generating 3D coordinates—yet existing approaches force a choice between invariant and equivariant architectures, each with inherent limitations.
 
-- **Optimal Transport Flow Matching** for efficient and stable training
-- **Dual Encoder Architecture** for capturing both local and global molecular features
-- **Multi-task Learning** for joint pretraining on molecular properties
+**We show that this tradeoff is unnecessary.**
+
+By canonicalizing molecules into a learned standard pose before encoding, a single non-equivariant model can support both invariant and equivariant tasks. We theoretically demonstrate that this approach overcomes the fundamental constraints of prior paradigms. Pretrained on large-scale molecular data, our model consistently rivals methods purpose-built for each task.
 
 <p align="center">
   <img src="assets/framework.png" width="800" alt="TheMol Framework"/>
@@ -36,10 +36,10 @@
 
 | Feature | Description |
 |---------|-------------|
-| 🎯 **Unconditional Generation** | Generate valid 3D molecules from scratch |
-| 🧬 **Property Prediction** | Fine-tune for MoleculeNet & ADMET benchmarks |
-| 🔬 **Target-aware Optimization** | CMA-ES based latent optimization with docking scores |
-| ⚡ **Fast Inference** | Efficient sampling with flow matching |
+| 🎯 **Unified Architecture** | Single model handles both invariant and equivariant tasks |
+| 🧬 **Canonical Representation** | Learned standard pose eliminates architecture tradeoffs |
+| 🔬 **Multi-task Capability** | Property prediction, generation, and structure-based optimization |
+| ⚡ **State-of-the-art Performance** | Rivals purpose-built methods across all benchmarks |
 
 ---
 
@@ -388,27 +388,6 @@ masked_token_loss = 1.0
 masked_coord_loss = 10.0
 masked_dist_loss = 10.0
 ```
-
----
-
-## 📝 Citation
-
-If you find this work useful, please cite:
-
-```bibtex
-@inproceedings{themol2025,
-  title={TheMol: 3D Molecular Generation with Optimal Transport Flow Matching},
-  author={Anonymous},
-  booktitle={International Conference on Machine Learning (ICML)},
-  year={2025}
-}
-```
-
----
-
-## 📜 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
