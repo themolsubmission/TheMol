@@ -121,10 +121,12 @@ pip install https://github.com/dptech-corp/Uni-Core/releases/download/0.0.3/unic
 # Step 4: Install other dependencies
 pip install rdkit numpy pandas scipy tqdm lmdb cmaes pyzmq
 
-# Step 5: Clone repository and install TheMol
+# Step 5: Install TheMol
+pip install https://github.com/themolsubmission/TheMol/releases/download/v1.0.0-TheMol-package/themol-0.1.0-py3-none-any.whl
+
+# Step 6: Clone repository (for training scripts and configs)
 git clone https://github.com/themolsubmission/TheMol.git
 cd TheMol
-pip install -e .
 ```
 
 ### Uni-Core Wheel Selection Guide
