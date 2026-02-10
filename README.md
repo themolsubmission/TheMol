@@ -353,34 +353,6 @@ python run_experiment.py \
 python summarize.py --results_dir ./results
 ```
 
----
-
-## 📊 Results
-
-### Unconditional Generation
-
-| Method | Validity ↑ | Stability ↑ | REOS ↓ | Energy ↓ |
-|--------|------------|-------------|--------|----------|
-| EDM | 91.8 | 82.0 | 0.45 | 0.32 |
-| GeoLDM | 93.5 | 89.7 | 0.38 | 0.28 |
-| **TheMol** | **XX.X** | **XX.X** | **X.XX** | **X.XX** |
-
-### Property Prediction (MoleculeNet)
-
-| Method | BACE | BBBP | ClinTox | HIV | Tox21 | Avg |
-|--------|------|------|---------|-----|-------|-----|
-| Uni-Mol | 85.7 | 72.9 | 91.9 | 80.8 | 79.6 | 82.2 |
-| **TheMol** | **XX.X** | **XX.X** | **XX.X** | **XX.X** | **XX.X** | **XX.X** |
-
-### ADMET Prediction
-
-| Method | Absorption | Distribution | Metabolism | Toxicity | Avg |
-|--------|------------|--------------|------------|----------|-----|
-| SOTA | X.XX | X.XX | X.XX | X.XX | X.XX |
-| **TheMol** | **X.XX** | **X.XX** | **X.XX** | **X.XX** | **X.XX** |
-
----
-
 ## 🔧 Configuration
 
 ### Model Architecture
