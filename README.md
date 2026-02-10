@@ -99,26 +99,46 @@ TheMol/
 - CUDA >= 11.8
 - RDKit >= 2022.03
 
-### Setup Environment
+### Quick Install (Recommended)
+
+We provide pre-compiled wheels for easy installation. Follow these steps in order:
 
 ```bash
-# Create conda environment
+# Step 1: Create conda environment
 conda create -n themol python=3.9
 conda activate themol
 
-# Install PyTorch (adjust CUDA version as needed)
-conda install pytorch pytorch-cuda=11.8 -c pytorch -c nvidia
+# Step 2: Install PyTorch with CUDA 11.8
+pip install torch==2.0.0 --index-url https://download.pytorch.org/whl/cu118
 
-# Install dependencies
-pip install rdkit-pypi numpy pandas scipy tqdm cmaes pyzmq
+# Step 3: Install Uni-Core (select wheel matching your Python version)
+# For Python 3.9 + CUDA 11.8 + PyTorch 2.0.0:
+pip install https://github.com/dptech-corp/Uni-Core/releases/download/0.0.3/unicore-0.0.1+cu118torch2.0.0-cp39-cp39-linux_x86_64.whl
 
-# Install unicore
-pip install unicore
+# For Python 3.10 + CUDA 11.8 + PyTorch 2.0.0:
+# pip install https://github.com/dptech-corp/Uni-Core/releases/download/0.0.3/unicore-0.0.1+cu118torch2.0.0-cp310-cp310-linux_x86_64.whl
 
-# Clone repository
+# Step 4: Install other dependencies
+pip install rdkit numpy pandas scipy tqdm lmdb cmaes pyzmq
+
+# Step 5: Clone repository and install TheMol
 git clone https://github.com/themolsubmission/TheMol.git
 cd TheMol
+pip install -e .
 ```
+
+### Uni-Core Wheel Selection Guide
+
+Choose the appropriate Uni-Core wheel based on your environment:
+
+| Python | CUDA | PyTorch | Wheel |
+|--------|------|---------|-------|
+| 3.9 | 11.8 | 2.0.0 | [unicore-cu118torch2.0.0-cp39](https://github.com/dptech-corp/Uni-Core/releases/download/0.0.3/unicore-0.0.1+cu118torch2.0.0-cp39-cp39-linux_x86_64.whl) |
+| 3.10 | 11.8 | 2.0.0 | [unicore-cu118torch2.0.0-cp310](https://github.com/dptech-corp/Uni-Core/releases/download/0.0.3/unicore-0.0.1+cu118torch2.0.0-cp310-cp310-linux_x86_64.whl) |
+| 3.9 | 11.7 | 2.0.0 | [unicore-cu117torch2.0.0-cp39](https://github.com/dptech-corp/Uni-Core/releases/download/0.0.3/unicore-0.0.1+cu117torch2.0.0-cp39-cp39-linux_x86_64.whl) |
+| 3.10 | 11.7 | 2.0.0 | [unicore-cu117torch2.0.0-cp310](https://github.com/dptech-corp/Uni-Core/releases/download/0.0.3/unicore-0.0.1+cu117torch2.0.0-cp310-cp310-linux_x86_64.whl) |
+
+For more wheel options, see [Uni-Core Releases](https://github.com/dptech-corp/Uni-Core/releases).
 
 ### Optional Dependencies
 
