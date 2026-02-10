@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="assets/themol.png" width="300" alt="TheMol Logo"/>
-</p>
-
 <h1 align="center"> Learning Canonical Representations for Unified 3D Molecular Modeling  </h1> 
 
 
