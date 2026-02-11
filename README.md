@@ -311,7 +311,7 @@ Fine-tune TheMol on TDC ADMET benchmarks.
 
 | Resource | Link |
 |----------|------|
-| Pretrained Checkpoint | [Download Link](https://github.com/themolsubmission/TheMol/releases/tag/checkpoint) |
+| Pretrained Checkpoint | [Download Link](https://github.com/themolsubmission/TheMol/releases/tag/checkpoint_tdc) |
 | ADMET Dataset | [Google Drive](https://drive.google.com/file/d/1I4Ydnay2fYHtHszdZ3gjFM6qnh2DmAJK/view?usp=sharing) |
 
 ```bash
@@ -342,7 +342,7 @@ Generate molecules optimized for specific protein targets using CMA-ES.
 
 | Resource | Link |
 |----------|------|
-| Pretrained Checkpoint | [Download Link](https://github.com/themolsubmission/TheMol/releases/download/v1.0.0-geom-weights/GEOM_checkpoint.pt) |
+| Pretrained Checkpoint | [Download Link](https://github.com/themolsubmission/TheMol/releases/download/checkpoint_geom/GEOM_checkpoint.pt) |
 | CrossDocked Dataset | [Google Drive](https://drive.google.com/file/d/1_QP2cG8pZmj4Rae7gk2_F0VEDAHm1YRu/view?usp=sharing) |
 
 ```bash
@@ -385,7 +385,7 @@ Extract molecular latent representations from pretrained TheMol model.
 
 | Resource | Link |
 |----------|------|
-| Pretrained Checkpoint | [Download Link](https://github.com/themolsubmission/TheMol/releases/download/v1.0.0-Pretrained-checkpoint/checkpoint_last.pt) |
+| Pretrained Checkpoint | [Download Link](https://github.com/themolsubmission/TheMol/releases/download/pretraining_checkpoint/checkpoint_last.pt) |
 
 ```bash
 # Extract latent from SDF file
