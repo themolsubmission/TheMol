@@ -224,7 +224,7 @@ Generate 3D molecules and evaluate with comprehensive metrics.
 
 | Resource | Link |
 |----------|------|
-| Pretrained Checkpoint | [Download Link](https://github.com/themolsubmission/TheMol/releases/download/v1.0.0-geom-weights/GEOM_checkpoint.pt) |
+| Pretrained Checkpoint | [Download Link](https://github.com/themolsubmission/TheMol/releases/download/checkpoint_geom/GEOM_checkpoint.pt) |
 | GEOM Dataset | [Google Drive](https://drive.google.com/file/d/1EVRqx2xLUFf40zuTa0HgCKUKznWs9mGL/view?usp=sharing) |
 
 ```bash
@@ -266,7 +266,7 @@ Fine-tune TheMol on MoleculeNet benchmarks.
 
 | Resource | Link |
 |----------|------|
-| Pretrained Checkpoint | [Download Link](https://github.com/themolsubmission/TheMol/releases/tag/v1.0.0-MoleculeNet-weight) |
+| Pretrained Checkpoint | [Download Link](https://github.com/themolsubmission/TheMol/releases/tag/checkpoint_molnet) |
 | MoleculeNet Dataset | [Google Drive](https://drive.google.com/file/d/1hqGEgZCqOr3XaS4MNTT9ZMgoBZtBV_IR/view?usp=sharing) |
 
 ```bash
